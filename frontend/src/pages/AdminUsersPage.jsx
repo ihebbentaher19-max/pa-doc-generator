@@ -1,0 +1,95 @@
+import { useEffect, useState } from "react";
+import { ShieldCheck, ShieldOff } from "lucide-react";
+import PageHeader from "../components/ui/PageHeader";
+import Spinner from "../components/ui/Spinner";
+import Callout from "../components/ui/Callout";
+import { listUsers, changeUserRole, setUserActive } from "../services/usersService";
+import { getApiErrorMessage } from "../services/api";
+
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  function load() {
+    setIsLoading(true);
+    listUsers()
+      .then(setUsers)
+      .catch((err) => setError(getApiErrorMessage(err)))
+      .finally(() => setIsLoading(false));
+  }
+
+  useEffect(load, []);
+
+  async function toggleRole(user) {
+    const newRole = user.role === "Administrateur" ? "Utilisateur" : "Administrateur";
+    await changeUserRole(user.id, newRole);
+    load();
+  }
+
+  async function toggleActive(user) {
+    await setUserActive(user.id, !user.isActive);
+    load();
+  }
+
+  return (
+    <div className="page-content">
+      <PageHeader
+        eyebrow="Module de gestion des rôles"
+        title="Administration des comptes"
+        description="Attribution des rôles (administrateur / utilisateur) et activation des comptes de la plateforme."
+      />
+
+      {error && <Callout tone="error">{error}</Callout>}
+
+      {isLoading ? (
+        <div className="row" style={{ gap: 8, color: "var(--color-muted)" }}><Spinner /> Chargement…</div>
+      ) : (
+        <div className="card" style={{ padding: "var(--space-5)" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "var(--color-muted)", fontSize: 12 }}>
+                <th style={{ padding: "8px 4px" }}>Nom</th>
+                <th style={{ padding: "8px 4px" }}>E-mail</th>
+                <th style={{ padding: "8px 4px" }}>Rôle</th>
+                <th style={{ padding: "8px 4px" }}>Statut</th>
+                <th style={{ padding: "8px 4px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                  <td style={{ padding: "10px 4px", fontWeight: 600 }}>{u.fullName}</td>
+                  <td style={{ padding: "10px 4px", color: "var(--color-muted)" }}>{u.email}</td>
+                  <td style={{ padding: "10px 4px" }}>
+                    <button
+                      onClick={() => toggleRole(u)}
+                      className="row"
+                      style={{ gap: 6, border: "1px solid var(--color-border)", background: "var(--color-surface)", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, fontWeight: 600 }}
+                    >
+                      {u.role === "Administrateur" ? <ShieldCheck size={14} color="var(--color-primary)" /> : <ShieldOff size={14} color="var(--color-muted)" />}
+                      {u.role}
+                    </button>
+                  </td>
+                  <td style={{ padding: "10px 4px" }}>
+                    <span style={{ color: u.isActive ? "var(--color-success)" : "var(--color-danger)", fontWeight: 600 }}>
+                      {u.isActive ? "Actif" : "Désactivé"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 4px", textAlign: "right" }}>
+                    <button
+                      onClick={() => toggleActive(u)}
+                      style={{ border: "none", background: "transparent", color: "var(--color-primary)", fontWeight: 600, fontSize: 12.5 }}
+                    >
+                      {u.isActive ? "Désactiver" : "Réactiver"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
