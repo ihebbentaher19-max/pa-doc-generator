@@ -1,0 +1,22 @@
+# ---- Backend (.NET) ----
+backend/**/bin/
+backend/**/obj/
+*.user
+*.suo
+
+# ---- Frontend (Node / Vite) ----
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ---- Secrets ----
+**/appsettings.*.local.json
+**/secrets.json
+
+# ---- OS / éditeurs ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
