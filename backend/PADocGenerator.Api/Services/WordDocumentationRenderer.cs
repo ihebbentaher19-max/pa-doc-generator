@@ -63,9 +63,8 @@ public class WordDocumentationRenderer
 
     private static Paragraph CreateHeading(string text, int level)
     {
-        var styleId = level == 1 ? "Heading1" : "Heading2";
         return new Paragraph(
-            new ParagraphProperties(new ParagraphStyleId { Val = styleId }),
+            new ParagraphProperties(new SpacingBetweenLines { Before = "240", After = "120" }),
             new Run(new RunProperties(new Bold(), new FontSize { Val = level == 1 ? "32" : "26" }),
                 new Text(text)));
     }
@@ -76,17 +75,22 @@ public class WordDocumentationRenderer
         if (italic) runProperties.Append(new Italic());
         if (small) runProperties.Append(new FontSize { Val = "18" });
 
+        // Remarque : on évite volontairement d'utiliser une véritable numérotation
+        // Word (NumberingProperties + NumberingId) car cela nécessite de déclarer
+        // une définition correspondante dans une NumberingDefinitionsPart séparée ;
+        // sans cette définition, Word affiche un message de réparation à
+        // l'ouverture. Un simple préfixe "•" est plus sûr pour un export léger.
+        var displayText = bullet ? $"•  {text}" : text;
+
         var paragraphProperties = new ParagraphProperties();
         if (bullet)
         {
-            paragraphProperties.Append(new NumberingProperties(
-                new NumberingLevelReference { Val = 0 },
-                new NumberingId { Val = 1 }));
+            paragraphProperties.Append(new Indentation { Left = "360" });
         }
 
         return new Paragraph(
             paragraphProperties,
-            new Run(runProperties, new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
+            new Run(runProperties, new Text(displayText) { Space = SpaceProcessingModeValues.Preserve }));
     }
 
     private static Table CreateStepsTable(List<DocumentationStepDto> steps)
