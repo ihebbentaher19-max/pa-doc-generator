@@ -118,19 +118,42 @@ public class FlowParserService : IFlowParserService
             }
 
             // Les variables (InitializeVariable / SetVariable) sont extraites séparément.
+            // Schéma réel Power Automate : "inputs": { "variables": [ { "name", "type", "value" } ] }
+            // pour InitializeVariable (potentiellement plusieurs variables dans le même tableau),
+            // et "inputs": { "name", "value" } (à plat) pour SetVariable. On gère les deux formes.
             if (actionType.Contains("Variable", StringComparison.OrdinalIgnoreCase) &&
                 actionBody.TryGetProperty("inputs", out var varInputs))
             {
-                var variableName = varInputs.TryGetProperty("name", out var vn) ? vn.GetString() : actionName;
-                var variableType = varInputs.TryGetProperty("type", out var vt) ? vt.GetString() : "unknown";
-                var variableValue = varInputs.TryGetProperty("value", out var vv) ? vv.ToString() : null;
-
-                flow.Variables.Add(new ParsedVariable
+                if (varInputs.TryGetProperty("variables", out var variablesArray) &&
+                    variablesArray.ValueKind == JsonValueKind.Array)
                 {
-                    Name = variableName ?? actionName,
-                    Type = variableType ?? "unknown",
-                    InitialValue = variableValue
-                });
+                    foreach (var variableEl in variablesArray.EnumerateArray())
+                    {
+                        var name = variableEl.TryGetProperty("name", out var n) ? n.GetString() : actionName;
+                        var type = variableEl.TryGetProperty("type", out var t) ? t.GetString() : "unknown";
+                        var value = variableEl.TryGetProperty("value", out var v) ? v.ToString() : null;
+
+                        flow.Variables.Add(new ParsedVariable
+                        {
+                            Name = name ?? actionName,
+                            Type = type ?? "unknown",
+                            InitialValue = value
+                        });
+                    }
+                }
+                else
+                {
+                    // Forme à plat (ex. SetVariable) : "inputs": { "name": "...", "value": "..." }
+                    var name = varInputs.TryGetProperty("name", out var n) ? n.GetString() : actionName;
+                    var value = varInputs.TryGetProperty("value", out var v) ? v.ToString() : null;
+
+                    flow.Variables.Add(new ParsedVariable
+                    {
+                        Name = name ?? actionName,
+                        Type = "unknown",
+                        InitialValue = value
+                    });
+                }
                 continue;
             }
 
