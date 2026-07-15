@@ -1,0 +1,74 @@
+# Pipeline CI/CD Azure DevOps - Générateur de documentation IA pour Power Automate
+# Cf. cahier des charges, section 5 : "Azure DevOps ... gestion de projet intégrée
+# (backlog, sprints) ... pipelines de build, de test et de déploiement."
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  dotnetVersion: "8.0.x"
+  nodeVersion: "20.x"
+
+stages:
+  # ---------------------------------------------------------------------
+  - stage: Backend
+    displayName: "Backend - ASP.NET Core Web API"
+    jobs:
+      - job: BuildAndTest
+        steps:
+          - task: UseDotNet@2
+            displayName: "Installer .NET SDK"
+            inputs:
+              version: $(dotnetVersion)
+
+          - script: dotnet restore backend/PADocGenerator.sln
+            displayName: "dotnet restore"
+
+          - script: dotnet build backend/PADocGenerator.sln --no-restore --configuration Release
+            displayName: "dotnet build"
+
+          - script: dotnet test backend/PADocGenerator.Tests/PADocGenerator.Tests.csproj --no-build --configuration Release --logger trx
+            displayName: "dotnet test"
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: "VSTest"
+              testResultsFiles: "**/*.trx"
+
+  # ---------------------------------------------------------------------
+  - stage: Frontend
+    displayName: "Frontend - React"
+    dependsOn: []
+    jobs:
+      - job: BuildFrontend
+        steps:
+          - task: NodeTool@0
+            displayName: "Installer Node.js"
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: "npm ci"
+            workingDirectory: frontend
+
+          - script: npm run lint
+            displayName: "npm run lint"
+            workingDirectory: frontend
+
+          - script: npm run build
+            displayName: "npm run build"
+            workingDirectory: frontend
+
+          - publish: frontend/dist
+            artifact: frontend-dist
