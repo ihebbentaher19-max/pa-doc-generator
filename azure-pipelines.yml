@@ -7,6 +7,14 @@ trigger:
     include:
       - main
 
+# NOTE IMPORTANTE : contrairement a GitHub, Azure Repos Git IGNORE le bloc
+# YAML "pr:" ci-dessous pour declencher une validation de Pull Request.
+# Sur Azure Repos, la validation de PR doit etre configuree via une
+# POLITIQUE DE BRANCHE (Repos > Branches > main > Branch policies >
+# Build Validation > selectionner ce pipeline). Le bloc "pr:" est laisse
+# ici a titre indicatif / au cas ou le depot serait un jour miroir sur
+# GitHub, mais n'a aucun effet sur Azure Repos tant que la politique de
+# branche n'est pas configuree manuellement dans l'interface.
 pr:
   branches:
     include:
