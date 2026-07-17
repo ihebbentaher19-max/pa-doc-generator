@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Download, History, Star, Plus, Trash2, Save } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Download, History, Star, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import StatusBadge from "../components/ui/StatusBadge";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
 import Spinner from "../components/ui/Spinner";
+import { useAuth } from "../context/useAuth";
 import {
   getDocumentation,
   updateDocumentation,
   changeDocumentationStatus,
   getVersionHistory,
   downloadExport,
+  regenerateDocumentation,
+  deleteDocumentation,
 } from "../services/documentationService";
 import { getApiErrorMessage } from "../services/api";
 import { inputStyle } from "../styles/formStyles";
@@ -20,6 +23,8 @@ const STATUS_OPTIONS = ["Brouillon", "Valide", "Archive"];
 
 export default function DocumentationDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   const [doc, setDoc] = useState(null);
   const [content, setContent] = useState(null);
@@ -30,6 +35,8 @@ export default function DocumentationDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
   const [isExporting, setIsExporting] = useState(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState([]);
@@ -80,6 +87,42 @@ export default function DocumentationDetailPage() {
       setSaveMessage({ tone: "error", text: getApiErrorMessage(err, "L'export a échoué.") });
     } finally {
       setIsExporting(null);
+    }
+  }
+
+  /** Relance la génération IA sur le flux d'origine (backlog : "Permettre la régénération"). */
+  async function handleRegenerate() {
+    if (!window.confirm("Relancer la génération IA ? Le contenu actuel sera remplacé par une nouvelle version.")) {
+      return;
+    }
+    setIsRegenerating(true);
+    setSaveMessage(null);
+    try {
+      const updated = await regenerateDocumentation(id);
+      setDoc(updated);
+      setContent(updated.content);
+      setTitle(updated.title);
+      setSaveMessage({ tone: "success", text: `Régénéré par l'IA — nouvelle version v${updated.currentVersionNumber}.` });
+    } catch (err) {
+      setSaveMessage({ tone: "error", text: getApiErrorMessage(err, "La régénération a échoué.") });
+    } finally {
+      setIsRegenerating(false);
+    }
+  }
+
+  /** Suppression définitive - réservée aux administrateurs côté backend ET masquée côté
+   * interface pour les autres profils (backlog : "Masquer les actions interdites côté interface"). */
+  async function handleDelete() {
+    if (!window.confirm("Supprimer définitivement cette documentation ? Cette action est irréversible.")) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteDocumentation(id);
+      navigate("/documentations");
+    } catch (err) {
+      setSaveMessage({ tone: "error", text: getApiErrorMessage(err, "La suppression a échoué.") });
+      setIsDeleting(false);
     }
   }
 
@@ -148,6 +191,9 @@ export default function DocumentationDetailPage() {
             <Button variant="secondary" onClick={toggleHistory}>
               <History size={15} /> Historique
             </Button>
+            <Button variant="secondary" onClick={handleRegenerate} disabled={isRegenerating}>
+              <RefreshCw size={15} /> {isRegenerating ? "Régénération…" : "Régénérer via IA"}
+            </Button>
             <Button variant="secondary" onClick={() => handleExport("pdf")} disabled={isExporting === "pdf"}>
               <Download size={15} /> {isExporting === "pdf" ? "Export…" : "PDF"}
             </Button>
@@ -157,6 +203,11 @@ export default function DocumentationDetailPage() {
             <Button onClick={handleSave} disabled={isSaving}>
               <Save size={15} /> {isSaving ? "Enregistrement…" : "Enregistrer"}
             </Button>
+            {isAdmin && (
+              <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+                <Trash2 size={15} /> {isDeleting ? "Suppression…" : "Supprimer"}
+              </Button>
+            )}
           </>
         }
       />
