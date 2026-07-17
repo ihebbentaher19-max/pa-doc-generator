@@ -1,0 +1,124 @@
+Work Item Type,Title,Description,Parent,Area Path,Iteration Path,Priority,Tags
+Epic,Gestion de l'authentification et des rôles,Gérer l’accès sécurisé et les permissions de la plateforme,,Projet Power Automate Docs,,1,authentification;roles
+Feature,Authentification utilisateur,Permettre à l’utilisateur de se connecter à la plateforme.,Gestion de l'authentification et des rôles,Projet Power Automate Docs,,1,authentification
+User Story,En tant qu’utilisateur; je veux me connecter pour accéder à mes documentations.,Accès sécurisé selon le profil.,Authentification utilisateur,Projet Power Automate Docs,,1,login
+Task,Créer l’écran de connexion,Développer l’interface de connexion.,En tant qu’utilisateur; je veux me connecter pour accéder à mes documentations.,Projet Power Automate Docs,,1,ui
+Task,Développer l’API d’authentification,Créer les endpoints de connexion et validation.,En tant qu’utilisateur; je veux me connecter pour accéder à mes documentations.,Projet Power Automate Docs,,1,backend
+Task,Gérer la session utilisateur,Conserver l’état connecté de l’utilisateur.,En tant qu’utilisateur; je veux me connecter pour accéder à mes documentations.,Projet Power Automate Docs,,1,session
+Task,Tester les cas de connexion,Valider les cas valides et invalides.,En tant qu’utilisateur; je veux me connecter pour accéder à mes documentations.,Projet Power Automate Docs,,1,test
+Feature,Gestion des rôles,Contrôler les accès selon les profils utilisateur.,Gestion de l'authentification et des rôles,Projet Power Automate Docs,,1,roles
+User Story,En tant qu’administrateur; je veux gérer les droits pour sécuriser les actions sensibles.,Les fonctions critiques sont réservées à l’administrateur.,Gestion des rôles,Projet Power Automate Docs,,1,autorisation
+Task,Créer le modèle de rôle,Définir les rôles administrateur et utilisateur.,En tant qu’administrateur; je veux gérer les droits pour sécuriser les actions sensibles.,Projet Power Automate Docs,,1,backend
+Task,Protéger les routes backend,Empêcher l’accès non autorisé aux ressources sensibles.,En tant qu’administrateur; je veux gérer les droits pour sécuriser les actions sensibles.,Projet Power Automate Docs,,1,backend
+Task,Masquer les actions interdites côté interface,Désactiver les boutons non autorisés selon le rôle.,En tant qu’administrateur; je veux gérer les droits pour sécuriser les actions sensibles.,Projet Power Automate Docs,,1,ui
+Task,Tester les permissions,Vérifier les accès par rôle.,En tant qu’administrateur; je veux gérer les droits pour sécuriser les actions sensibles.,Projet Power Automate Docs,,1,test
+Epic,Importation des flux,Importer les fichiers JSON Power Automate dans la plateforme,,Projet Power Automate Docs,,1,import
+Feature,Téléversement JSON,Permettre l’import d’un fichier Power Automate au format JSON.,Importation des flux,Projet Power Automate Docs,,1,json
+User Story,En tant qu’utilisateur; je veux importer un flux Power Automate exporté en JSON.,Le fichier importé doit être validé avant traitement.,,Projet Power Automate Docs,,1,import
+Task,Créer le composant d’upload,Développer l’interface de sélection de fichier.,En tant qu’utilisateur; je veux importer un flux Power Automate exporté en JSON.,Projet Power Automate Docs,,1,ui
+Task,Vérifier la validité du fichier JSON,Contrôler le format et la structure du fichier.,En tant qu’utilisateur; je veux importer un flux Power Automate exporté en JSON.,Projet Power Automate Docs,,1,validation
+Task,Envoyer le fichier au backend,Transmettre le fichier importé au service API.,En tant qu’utilisateur; je veux importer un flux Power Automate exporté en JSON.,Projet Power Automate Docs,,1,backend
+Task,Gérer les erreurs d’import,Afficher les messages d’erreur en cas de fichier invalide.,En tant qu’utilisateur; je veux importer un flux Power Automate exporté en JSON.,Projet Power Automate Docs,,1,ui
+Feature,Sauvegarde des métadonnées,Enregistrer les informations associées au flux importé.,Importation des flux,Projet Power Automate Docs,,1,métadonnées
+User Story,En tant qu’utilisateur; je veux conserver les informations du flux importé.,Les métadonnées doivent être sauvegardées avec le document.,Sauvegarde des métadonnées,Projet Power Automate Docs,,1,storage
+Task,Créer les champs de métadonnées,Ajouter nom et date et auteur et status,En tant qu’utilisateur; je veux conserver les informations du flux importé.,Projet Power Automate Docs,,1,backend
+Task,Relier le flux à sa documentation,Créer l’association entre flux et documentation.,En tant qu’utilisateur; je veux conserver les informations du flux importé.,Projet Power Automate Docs,,1,backend
+Task,Enregistrer les données en base,Sauvegarder le flux et ses métadonnées.,En tant qu’utilisateur; je veux conserver les informations du flux importé.,Projet Power Automate Docs,,1,storage
+Epic,Préparation des données,Extraire et structurer les informations utiles du flux JSON,,Projet Power Automate Docs,,1,preprocessing
+Feature,Lecture du JSON,Parser automatiquement le fichier importé.,Préparation des données,Projet Power Automate Docs,,1,json
+User Story,En tant que système; je veux lire automatiquement le fichier importé.,L’application doit extraire les éléments utiles du workflow.,Lecture du JSON,Projet Power Automate Docs,,1,backend
+Task,Implémenter le parseur JSON,Développer la lecture structurée du fichier.,En tant que système; je veux lire automatiquement le fichier importé.,Projet Power Automate Docs,,1,backend
+Task,Extraire les actions,Récupérer les étapes du flux.,En tant que système; je veux lire automatiquement le fichier importé.,Projet Power Automate Docs,,1,backend
+Task,Extraire les conditions et variables,Identifier les dépendances et données de contexte.,En tant que système; je veux lire automatiquement le fichier importé.,Projet Power Automate Docs,,1,backend
+Task,Extraire les connecteurs,Identifier les services utilisés par le flux.,En tant que système; je veux lire automatiquement le fichier importé.,Projet Power Automate Docs,,1,backend
+Feature,Structuration pour l’IA,Préparer les données avant génération du prompt.,Préparation des données,Projet Power Automate Docs,,1,ai
+User Story,En tant que système; je veux préparer les données pour générer le prompt.,Le système doit fournir une structure exploitable par l’IA.,Structuration pour l’IA,Projet Power Automate Docs,,1,ai
+Task,Normaliser les données,Convertir les informations extraites dans un format uniforme.,En tant que système; je veux préparer les données pour générer le prompt.,Projet Power Automate Docs,,1,backend
+Task,Construire l’objet intermédiaire,Créer le modèle de données pour la génération.,En tant que système; je veux préparer les données pour générer le prompt.,Projet Power Automate Docs,,1,backend
+Task,Vérifier la cohérence avant génération,Contrôler les données avant envoi à l’IA.,En tant que système; je veux préparer les données pour générer le prompt.,Projet Power Automate Docs,,1,validation
+Epic,Génération IA,Produire automatiquement la documentation à partir du flux,,Projet Power Automate Docs,,1,ia
+Feature,Génération du prompt,Construire automatiquement un prompt adapté au flux.,Génération IA,Projet Power Automate Docs,,1,prompt
+User Story,En tant que système; je veux construire automatiquement un prompt adapté.,Le prompt doit intégrer les données du flux.,Génération du prompt,Projet Power Automate Docs,,1,ai
+Task,Définir le template de prompt,Créer la structure de base du prompt.,En tant que système; je veux construire automatiquement un prompt adapté.,Projet Power Automate Docs,,1,ai
+Task,Injecter les données du flux,Ajouter actions et conditions et variables et connecteurs.,En tant que système; je veux construire automatiquement un prompt adapté.,Projet Power Automate Docs,,1,ai
+Task,Ajouter les consignes de style,Demander une documentation claire et structurée.,En tant que système; je veux construire automatiquement un prompt adapté.,Projet Power Automate Docs,,1,ai
+Task,Tester plusieurs prompts,Comparer la qualité des résultats générés.,En tant que système; je veux construire automatiquement un prompt adapté.,Projet Power Automate Docs,,1,test
+Feature,Résumé fonctionnel,Produire un résumé du flux en langage naturel.,Génération IA,Projet Power Automate Docs,,1,summary
+User Story,En tant qu’utilisateur; je veux obtenir un résumé du flux.,Le résumé doit expliquer le but global du workflow.,Résumé fonctionnel,Projet Power Automate Docs,,1,ai
+Task,Appeler Azure OpenAI,Générer le résumé du flux.,En tant qu’utilisateur; je veux obtenir un résumé du flux.,Projet Power Automate Docs,,1,backend
+Task,Afficher le résumé généré,Présenter le résultat dans l’interface.,En tant qu’utilisateur; je veux obtenir un résumé du flux.,Projet Power Automate Docs,,1,ui
+Task,Permettre la régénération,Relancer la génération si nécessaire.,En tant qu’utilisateur; je veux obtenir un résumé du flux.,Projet Power Automate Docs,,1,ui
+Feature,Détail des étapes,Générer la description de chaque étape du flux.,Génération IA,Projet Power Automate Docs,,1,details
+User Story,En tant qu’utilisateur; je veux voir la description de chaque étape.,La documentation doit expliquer les actions et leur rôle.,Détail des étapes,Projet Power Automate Docs,,1,ai
+Task,Générer la description des actions,Décrire chaque étape du flux.,En tant qu’utilisateur; je veux voir la description de chaque étape.,Projet Power Automate Docs,,1,ai
+Task,Générer les dépendances,Expliquer les relations entre étapes et variables et connecteurs.,En tant qu’utilisateur; je veux voir la description de chaque étape.,Projet Power Automate Docs,,1,ai
+Task,Identifier les étapes importantes,Mettre en évidence les étapes clés du flux.,En tant qu’utilisateur; je veux voir la description de chaque étape.,Projet Power Automate Docs,,1,ai
+Epic,Édition et mise en forme,Permettre la correction et la mise en page de la documentation,,Projet Power Automate Docs,,1,editor
+Feature,Interface éditable,Modifier la documentation générée avant enregistrement.,Édition et mise en forme,Projet Power Automate Docs,,1,editing
+User Story,En tant qu’utilisateur; je veux corriger la documentation générée avant enregistrement.,L’utilisateur peut ajuster le contenu généré par l’IA.,Interface éditable,Projet Power Automate Docs,,1,ui
+Task,Créer l’éditeur de texte,Développer la zone d’édition.,En tant qu’utilisateur; je veux corriger la documentation générée avant enregistrement.,Projet Power Automate Docs,,1,ui
+Task,Charger le contenu généré,Pré-remplir l’éditeur avec la sortie IA.,En tant qu’utilisateur; je veux corriger la documentation générée avant enregistrement.,Projet Power Automate Docs,,1,ui
+Task,Sauvegarder les modifications,Enregistrer les corrections de l’utilisateur.,En tant qu’utilisateur; je veux corriger la documentation générée avant enregistrement.,Projet Power Automate Docs,,1,backend
+Task,Tester l’édition,Vérifier la modification et la persistance.,En tant qu’utilisateur; je veux corriger la documentation générée avant enregistrement.,Projet Power Automate Docs,,1,test
+Feature,Mise en forme,Organiser automatiquement le contenu documentaire.,Édition et mise en forme,Projet Power Automate Docs,,1,formatting
+User Story,En tant qu’utilisateur; je veux une documentation claire et structurée.,Le contenu doit être présenté avec des sections lisibles.,Mise en forme,Projet Power Automate Docs,,1,ui
+Task,Définir les sections standard,Préparer le modèle de mise en page.,En tant qu’utilisateur; je veux une documentation claire et structurée.,Projet Power Automate Docs,,1,ui
+Task,Mettre en forme titres sous-titres et tableaux,Appliquer la structure finale au document.,En tant qu’utilisateur; je veux une documentation claire et structurée.,Projet Power Automate Docs,,1,ui
+Task,Ajouter la prévisualisation,Permettre de voir le résultat avant sauvegarde.,En tant qu’utilisateur; je veux une documentation claire et structurée.,Projet Power Automate Docs,,1,ui
+Epic,Gestion documentaire,Enregistrer et historiser et gérer le statut des documentations,,Projet Power Automate Docs,,1,document
+Feature,Sauvegarde,Enregistrer la documentation générée.,Gestion documentaire,Projet Power Automate Docs,,1,storage
+User Story,En tant qu’utilisateur; je veux enregistrer la documentation générée.,La documentation doit être persistée dans la base.,Sauvegarde,Projet Power Automate Docs,,1,storage
+Task,Créer le modèle documentation,Définir l’entité de stockage.,En tant qu’utilisateur; je veux enregistrer la documentation générée.,Projet Power Automate Docs,,1,backend
+Task,Développer l’API de sauvegarde,Créer les endpoints d’enregistrement.,En tant qu’utilisateur; je veux enregistrer la documentation générée.,Projet Power Automate Docs,,1,backend
+Task,Lier documentation et flux,Associer le document au flux importé.,En tant qu’utilisateur; je veux enregistrer la documentation générée.,Projet Power Automate Docs,,1,backend
+Task,Tester l’enregistrement,Vérifier la sauvegarde en base.,En tant qu’utilisateur; je veux enregistrer la documentation générée.,Projet Power Automate Docs,,1,test
+Feature,Statuts documentaires,Gérer brouillon validé et archivé.,Gestion documentaire,Projet Power Automate Docs,,1,status
+User Story,En tant qu’utilisateur; je veux gérer les statuts de la documentation.,Le statut doit être modifiable et filtrable.,Statuts documentaires,Projet Power Automate Docs,,1,workflow
+Task,Ajouter le champ statut,Intégrer le statut dans le modèle de données.,En tant qu’utilisateur; je veux gérer les statuts de la documentation.,Projet Power Automate Docs,,1,backend
+Task,Mettre à jour le statut,Permettre le passage entre brouillon validé et archivé.,En tant qu’utilisateur; je veux gérer les statuts de la documentation.,Projet Power Automate Docs,,1,backend
+Task,Filtrer par statut,Rechercher les documents selon leur statut.,En tant qu’utilisateur; je veux gérer les statuts de la documentation.,Projet Power Automate Docs,,1,ui
+Feature,Versioning,Conserver l’historique des versions.,Gestion documentaire,Projet Power Automate Docs,,1,version
+User Story,En tant qu’utilisateur; je veux consulter l’historique des versions.,Chaque modification doit être traçable.,Versioning,Projet Power Automate Docs,,1,audit
+Task,Créer le modèle de version,Définir les champs de version.,En tant qu’utilisateur; je veux consulter l’historique des versions.,Projet Power Automate Docs,,1,backend
+Task,Sauvegarder chaque version,Conserver un historique à chaque modification.,En tant qu’utilisateur; je veux consulter l’historique des versions.,Projet Power Automate Docs,,1,backend
+Task,Afficher l’historique,Présenter les anciennes versions à l’utilisateur.,En tant qu’utilisateur; je veux consulter l’historique des versions.,Projet Power Automate Docs,,1,ui
+Task,Tester la restauration d’une version,Valider la consultation et la reprise d’une ancienne version.,En tant qu’utilisateur; je veux consulter l’historique des versions.,Projet Power Automate Docs,,1,test
+Epic,Recherche et tableau de bord,Faciliter l’accès aux documents et visualiser l’activité,,Projet Power Automate Docs,,1,search
+Feature,Recherche,Retrouver rapidement une documentation.,Recherche et tableau de bord,Projet Power Automate Docs,,1,search
+User Story,En tant qu’utilisateur; je veux rechercher par nom mot-clé ou statut.,La recherche doit être rapide et pertinente.,Recherche,Projet Power Automate Docs,,1,ui
+Task,Créer la barre de recherche,Développer l’interface de recherche.,En tant qu’utilisateur; je veux rechercher par nom mot-clé ou statut.,Projet Power Automate Docs,,1,ui
+Task,Ajouter les filtres,Filtrer par nom et mot-clé et statut.,En tant qu’utilisateur; je veux rechercher par nom mot-clé ou statut.,Projet Power Automate Docs,,1,ui
+Task,Relier la recherche au backend,Ajouter les requêtes API de filtrage.,En tant qu’utilisateur; je veux rechercher par nom mot-clé ou statut.,Projet Power Automate Docs,,1,backend
+Task,Tester les recherches,Vérifier la pertinence des résultats.,En tant qu’utilisateur; je veux rechercher par nom mot-clé ou statut.,Projet Power Automate Docs,,1,test
+Feature,Tableau de bord,Afficher l’activité globale de la plateforme.,Recherche et tableau de bord,Projet Power Automate Docs,,1,dashboard
+User Story,En tant qu’utilisateur; je veux voir les documentations récentes et les statistiques.,Le tableau de bord doit donner une vue synthétique.,Tableau de bord,Projet Power Automate Docs,,1,ui
+Task,Créer les indicateurs,Afficher nombre de documents et statistiques.,En tant qu’utilisateur; je veux voir les documentations récentes et les statistiques.,Projet Power Automate Docs,,1,ui
+Task,Afficher les derniers flux,Montrer les documentations récentes.,En tant qu’utilisateur; je veux voir les documentations récentes et les statistiques.,Projet Power Automate Docs,,1,ui
+Task,Afficher les dernières activités,Montrer les actions récentes de la plateforme.,En tant qu’utilisateur; je veux voir les documentations récentes et les statistiques.,Projet Power Automate Docs,,1,ui
+Task,Actualiser les données,Mettre à jour les informations affichées.,En tant qu’utilisateur; je veux voir les documentations récentes et les statistiques.,Projet Power Automate Docs,,1,backend
+Epic,Export,Exporter la documentation au format PDF ou Word,,Projet Power Automate Docs,,1,export
+Feature,Export PDF,Générer un document PDF téléchargeable.,Export,Projet Power Automate Docs,,1,pdf
+User Story,En tant qu’utilisateur; je veux télécharger la documentation en PDF.,Le document doit être partageable hors plateforme.,Export PDF,Projet Power Automate Docs,,1,export
+Task,Intégrer le générateur PDF,Créer la génération côté backend.,En tant qu’utilisateur; je veux télécharger la documentation en PDF.,Projet Power Automate Docs,,1,backend
+Task,Définir le template PDF,Créer la mise en page du document.,En tant qu’utilisateur; je veux télécharger la documentation en PDF.,Projet Power Automate Docs,,1,backend
+Task,Tester le téléchargement,Vérifier le fichier PDF généré.,En tant qu’utilisateur; je veux télécharger la documentation en PDF.,Projet Power Automate Docs,,1,test
+Feature,Export Word,Générer un document Word téléchargeable.,Export,Projet Power Automate Docs,,1,word
+User Story,En tant qu’utilisateur; je veux télécharger la documentation en Word.,Le document doit être modifiable hors plateforme.,Export Word,Projet Power Automate Docs,,1,export
+Task,Intégrer l’export Word,Créer la génération du fichier DOCX.,En tant qu’utilisateur; je veux télécharger la documentation en Word.,Projet Power Automate Docs,,1,backend
+Task,Appliquer le format DOCX,Mettre en page les sections et tableaux.,En tant qu’utilisateur; je veux télécharger la documentation en Word.,Projet Power Automate Docs,,1,backend
+Task,Tester le téléchargement,Vérifier le fichier Word généré.,En tant qu’utilisateur; je veux télécharger la documentation en Word.,Projet Power Automate Docs,,1,test
+Epic,Validation technique et déploiement,Assurer la stabilité de la plateforme et valider les fonctionnalités principales et préparer la mise en production.,,Projet Power Automate Docs,,1,validation;deploiement
+Feature,Tests fonctionnels,Vérifier le bon fonctionnement des modules principaux.,Validation technique et déploiement,Projet Power Automate Docs,,1,test
+User Story,En tant qu’équipe; nous voulons valider les fonctionnalités avant livraison.,Le produit doit être testé avant toute mise en production.,Tests fonctionnels,Projet Power Automate Docs,,1,validation
+Task,Tester l’import JSON,Valider l’import de fichiers JSON valides et invalides.,En tant qu’équipe; nous voulons valider les fonctionnalités avant livraison.,Projet Power Automate Docs,,1,test
+Task,Tester la génération de documentation,Vérifier la qualité et la structure des documentations générées.,En tant qu’équipe; nous voulons valider les fonctionnalités avant livraison.,Projet Power Automate Docs,,1,test
+Task,Tester l’édition et l’export,Valider l’enchaînement complet jusqu’au téléchargement.,En tant qu’équipe; nous voulons valider les fonctionnalités avant livraison.,Projet Power Automate Docs,,1,test
+Feature,Automatisation CI/CD,Mettre en place les pipelines et automatiser les builds et les tests.,Validation technique et déploiement,Projet Power Automate Docs,,1,ci-cd
+User Story,En tant qu’équipe; nous voulons automatiser le build et les tests.,Le pipeline doit faciliter la livraison continue.,Automatisation CI/CD,Projet Power Automate Docs,,1,devops
+Task,Créer le pipeline backend,Automatiser la compilation et les tests du backend.,En tant qu’équipe; nous voulons automatiser le build et les tests.,Projet Power Automate Docs,,1,devops
+Task,Créer le pipeline frontend,Automatiser la compilation et les tests du frontend.,En tant qu’équipe; nous voulons automatiser le build et les tests.,Projet Power Automate Docs,,1,devops
+Task,Préparer le déploiement,Définir l’environnement cible et les paramètres de déploiement.,En tant qu’équipe; nous voulons automatiser le build et les tests.,Projet Power Automate Docs,,1,devops
+Feature,Gestion des corrections,Traiter les anomalies détectées et revalider les fonctionnalités après correction.,Validation technique et déploiement,Projet Power Automate Docs,,1,bugfix
+User Story,En tant qu’équipe; nous voulons corriger les anomalies détectées.,Les erreurs doivent être résolues puis revalidées.,Gestion des corrections,Projet Power Automate Docs,,1,bug
+Task,Corriger les anomalies détectées,Résoudre les bugs identifiés lors des tests.,En tant qu’équipe; nous voulons corriger les anomalies détectées.,Projet Power Automate Docs,,1,bug
+Task,Revalider les fonctionnalités après correction,Vérifier que les corrections n’ont pas cassé le reste.,En tant qu’équipe; nous voulons corriger les anomalies détectées.,Projet Power Automate Docs,,1,test
