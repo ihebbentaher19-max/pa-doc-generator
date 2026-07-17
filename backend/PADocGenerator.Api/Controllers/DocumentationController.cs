@@ -66,6 +66,34 @@ public class DocumentationController : ControllerBase
         return Ok(documentation);
     }
 
+    /// <summary>
+    /// Relance la génération IA sur le flux d'origine et enregistre le résultat
+    /// comme nouvelle version de la MÊME documentation (section 4 : "Permettre
+    /// la régénération" - backlog, feature "Résumé fonctionnel"). Utile quand la
+    /// première génération est insatisfaisante, sans avoir à ré-importer le flux.
+    /// </summary>
+    [HttpPost("{id:guid}/regenerate")]
+    public async Task<ActionResult<DocumentationDetailDto>> Regenerate(Guid id, CancellationToken ct)
+    {
+        var existing = await _managementService.GetByIdAsync(id, ct);
+        if (existing is null) return NotFound();
+
+        var flowImport = await _db.FlowImports.FindAsync([existing.FlowImportId], ct);
+        if (flowImport is null || !flowImport.IsValid)
+            return UnprocessableEntity(new { message = "Le flux d'origine est introuvable ou invalide." });
+
+        var parsedFlow = _flowParserService.Parse(flowImport.RawJson);
+        var rawContent = await _aiDocumentationService.GenerateAsync(parsedFlow, ct);
+        var formattedContent = _formattingService.Format(rawContent);
+
+        var updated = await _managementService.UpdateAsync(
+            id, User.GetUserId(),
+            new UpdateDocumentationDto(existing.Title, formattedContent, "Régénération via IA."),
+            ct);
+
+        return Ok(updated);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DocumentationDetailDto>> GetById(Guid id, CancellationToken ct)
     {
