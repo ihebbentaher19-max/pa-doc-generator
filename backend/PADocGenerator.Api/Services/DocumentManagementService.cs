@@ -164,6 +164,7 @@ public class DocumentManagementService : IDocumentManagementService
             documentation.Id,
             documentation.Title,
             flowName,
+            documentation.FlowImportId,
             documentation.Status.ToString(),
             documentation.CurrentVersionNumber,
             content,

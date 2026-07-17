@@ -38,6 +38,7 @@ public record DocumentationDetailDto(
     Guid Id,
     string Title,
     string FlowName,
+    Guid FlowImportId,
     string Status,
     int CurrentVersionNumber,
     DocumentationContentDto Content,
