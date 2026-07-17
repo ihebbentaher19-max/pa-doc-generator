@@ -6,6 +6,12 @@ export async function generateDocumentation(flowImportId) {
   return data;
 }
 
+/** Relance la génération IA sur le flux d'origine (nouvelle version de la même documentation). */
+export async function regenerateDocumentation(id) {
+  const { data } = await apiClient.post(`/documentation/${id}/regenerate`);
+  return data;
+}
+
 export async function getDocumentation(id) {
   const { data } = await apiClient.get(`/documentation/${id}`);
   return data;
