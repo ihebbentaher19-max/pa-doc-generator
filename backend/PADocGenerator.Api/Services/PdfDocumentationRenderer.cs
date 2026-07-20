@@ -63,7 +63,15 @@ public class PdfDocumentationRenderer
 
                             foreach (var step in documentation.Content.Steps)
                             {
-                                table.Cell().Element(BodyCell).Text(step.StepName).Bold(step.IsImportant);
+                                if (step.IsImportant)
+                                {
+                                    table.Cell().Element(BodyCell).Text(step.StepName).Bold();
+                                }
+                                else
+                                {
+                                    table.Cell().Element(BodyCell).Text(step.StepName);
+                                }
+
                                 table.Cell().Element(BodyCell).Text(step.Description);
                                 table.Cell().Element(BodyCell).Text(step.IsImportant ? "★" : "");
                             }
