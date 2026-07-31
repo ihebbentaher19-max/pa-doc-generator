@@ -5,8 +5,10 @@ import Spinner from "../components/ui/Spinner";
 import Callout from "../components/ui/Callout";
 import { listUsers, changeUserRole, setUserActive } from "../services/usersService";
 import { getApiErrorMessage } from "../services/api";
+import { useAuth } from "../context/useAuth";
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,14 +24,24 @@ export default function AdminUsersPage() {
   useEffect(load, []);
 
   async function toggleRole(user) {
+    setError(null);
     const newRole = user.role === "Administrateur" ? "Utilisateur" : "Administrateur";
-    await changeUserRole(user.id, newRole);
-    load();
+    try {
+      await changeUserRole(user.id, newRole);
+      load();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Le changement de rôle a échoué."));
+    }
   }
 
   async function toggleActive(user) {
-    await setUserActive(user.id, !user.isActive);
-    load();
+    setError(null);
+    try {
+      await setUserActive(user.id, !user.isActive);
+      load();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Le changement de statut a échoué."));
+    }
   }
 
   return (
@@ -57,35 +69,62 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u.id} style={{ borderTop: "1px solid var(--color-border)" }}>
-                  <td style={{ padding: "10px 4px", fontWeight: 600 }}>{u.fullName}</td>
-                  <td style={{ padding: "10px 4px", color: "var(--color-muted)" }}>{u.email}</td>
-                  <td style={{ padding: "10px 4px" }}>
-                    <button
-                      onClick={() => toggleRole(u)}
-                      className="row"
-                      style={{ gap: 6, border: "1px solid var(--color-border)", background: "var(--color-surface)", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, fontWeight: 600 }}
-                    >
-                      {u.role === "Administrateur" ? <ShieldCheck size={14} color="var(--color-primary)" /> : <ShieldOff size={14} color="var(--color-muted)" />}
-                      {u.role}
-                    </button>
-                  </td>
-                  <td style={{ padding: "10px 4px" }}>
-                    <span style={{ color: u.isActive ? "var(--color-success)" : "var(--color-danger)", fontWeight: 600 }}>
-                      {u.isActive ? "Actif" : "Désactivé"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "10px 4px", textAlign: "right" }}>
-                    <button
-                      onClick={() => toggleActive(u)}
-                      style={{ border: "none", background: "transparent", color: "var(--color-primary)", fontWeight: 600, fontSize: 12.5 }}
-                    >
-                      {u.isActive ? "Désactiver" : "Réactiver"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {users.map((u) => {
+                const isSelf = u.id === currentUser?.id;
+                return (
+                  <tr key={u.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                    <td style={{ padding: "10px 4px", fontWeight: 600 }}>
+                      {u.fullName}
+                      {isSelf && <span style={{ color: "var(--color-muted)", fontWeight: 400 }}> (vous)</span>}
+                    </td>
+                    <td style={{ padding: "10px 4px", color: "var(--color-muted)" }}>{u.email}</td>
+                    <td style={{ padding: "10px 4px" }}>
+                      <button
+                        onClick={() => toggleRole(u)}
+                        disabled={isSelf}
+                        title={isSelf ? "Vous ne pouvez pas modifier votre propre rôle." : undefined}
+                        className="row"
+                        style={{
+                          gap: 6,
+                          border: "1px solid var(--color-border)",
+                          background: "var(--color-surface)",
+                          borderRadius: 6,
+                          padding: "5px 10px",
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          opacity: isSelf ? 0.5 : 1,
+                          cursor: isSelf ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {u.role === "Administrateur" ? <ShieldCheck size={14} color="var(--color-primary)" /> : <ShieldOff size={14} color="var(--color-muted)" />}
+                        {u.role}
+                      </button>
+                    </td>
+                    <td style={{ padding: "10px 4px" }}>
+                      <span style={{ color: u.isActive ? "var(--color-success)" : "var(--color-danger)", fontWeight: 600 }}>
+                        {u.isActive ? "Actif" : "Désactivé"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 4px", textAlign: "right" }}>
+                      <button
+                        onClick={() => toggleActive(u)}
+                        disabled={isSelf}
+                        title={isSelf ? "Vous ne pouvez pas désactiver votre propre compte." : undefined}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: isSelf ? "var(--color-muted)" : "var(--color-primary)",
+                          fontWeight: 600,
+                          fontSize: 12.5,
+                          cursor: isSelf ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {u.isActive ? "Désactiver" : "Réactiver"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
