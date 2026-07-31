@@ -1,143 +1,284 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, UploadCloud, FileSearch, Users, LogOut, Workflow } from "lucide-react";
+import {
+  LayoutDashboard,
+  UploadCloud,
+  FileSearch,
+  Users,
+  LogOut,
+  Workflow
+} from "lucide-react";
 import { useAuth } from "../../context/useAuth";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Tableau de bord", icon: LayoutDashboard, end: true },
-  { to: "/importer", label: "Importer un flux", icon: UploadCloud },
-  { to: "/documentations", label: "Documentations", icon: FileSearch },
+  {
+    to: "/",
+    label: "Tableau de bord",
+    icon: LayoutDashboard,
+    end: true
+  },
+  {
+    to: "/importer",
+    label: "Importer un flux",
+    icon: UploadCloud
+  },
+  {
+    to: "/documentations",
+    label: "Documentations",
+    icon: FileSearch
+  }
 ];
 
 export default function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
 
+  const navStyle = (isActive) => ({
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+
+    padding: "12px 16px",
+
+    marginBottom: 6,
+
+    borderRadius: "12px",
+
+    textDecoration: "none",
+
+    fontSize: 14,
+
+    fontWeight: 600,
+
+    transition: "all .2s ease",
+
+    color: isActive
+      ? "var(--color-primary)"
+      : "var(--color-ink-soft)",
+
+    background: isActive
+      ? "var(--color-primary-soft)"
+      : "transparent",
+
+    borderLeft: isActive
+      ? "4px solid var(--color-primary)"
+      : "4px solid transparent"
+  });
+
   return (
     <aside
       style={{
+        background: "#ffffff",
+
         borderRight: "1px solid var(--color-border)",
-        background: "var(--color-surface)",
+
         display: "flex",
+
         flexDirection: "column",
-        padding: "var(--space-5) var(--space-4)",
-        gap: "var(--space-6)",
+
+        padding: "28px 18px",
+
+        gap: 34,
+
+        boxShadow: "2px 0 12px rgba(0,0,0,.03)"
       }}
     >
-      <div className="row" style={{ gap: 10, padding: "0 var(--space-2)" }}>
+      {/* Logo */}
+
+      <div
+        className="row"
+        style={{
+          gap: 14,
+          paddingLeft: 8
+        }}
+      >
         <div
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 10,
-            background: "var(--color-primary)",
+            width: 46,
+
+            height: 46,
+
+            borderRadius: 14,
+
+            background:
+              "linear-gradient(135deg,#0078D4,#00BCF2)",
+
             display: "flex",
+
             alignItems: "center",
+
             justifyContent: "center",
+
             color: "#fff",
-            flexShrink: 0,
+
+            boxShadow: "0 8px 20px rgba(0,120,212,.25)"
           }}
         >
-          <Workflow size={18} />
+          <Workflow size={22} />
         </div>
-        <div style={{ lineHeight: 1.2 }}>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14.5 }}>
-            PA&nbsp;Doc&nbsp;Generator
+
+        <div>
+          <div
+            style={{
+              fontWeight: 700,
+
+              fontSize: 18,
+
+              lineHeight: 1.2
+            }}
+          >
+            PA Doc Generator
           </div>
-          <div style={{ fontSize: 11, color: "var(--color-muted)" }}>Documentation IA</div>
+
+          <div
+            style={{
+              color: "var(--color-muted)",
+
+              fontSize: 12,
+
+              marginTop: 2
+            }}
+          >
+            Documentation IA
+          </div>
         </div>
       </div>
 
-      <nav className="stack" style={{ gap: 2 }}>
+      {/* Navigation */}
+
+      <nav
+        style={{
+          display: "flex",
+
+          flexDirection: "column"
+        }}
+      >
         {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "9px 12px",
-              borderRadius: "var(--radius-sm)",
-              fontSize: 13.5,
-              fontWeight: 600,
-              textDecoration: "none",
-              color: isActive ? "var(--color-primary)" : "var(--color-ink-soft)",
-              background: isActive ? "var(--color-primary-soft)" : "transparent",
-            })}
+            style={({ isActive }) => navStyle(isActive)}
           >
-            <Icon size={17} />
-            {label}
+            <Icon size={19} />
+
+            <span>{label}</span>
           </NavLink>
         ))}
 
         {isAdmin && (
           <NavLink
             to="/administration"
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "9px 12px",
-              borderRadius: "var(--radius-sm)",
-              fontSize: 13.5,
-              fontWeight: 600,
-              textDecoration: "none",
-              color: isActive ? "var(--color-primary)" : "var(--color-ink-soft)",
-              background: isActive ? "var(--color-primary-soft)" : "transparent",
-            })}
+            style={({ isActive }) => navStyle(isActive)}
           >
-            <Users size={17} />
+            <Users size={19} />
+
             Administration
           </NavLink>
         )}
       </nav>
 
-      <div style={{ marginTop: "auto" }} className="stack">
+      {/* Utilisateur */}
+
+      <div style={{ marginTop: "auto" }}>
         <div
-          className="row"
           style={{
-            gap: 10,
-            padding: "var(--space-3)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-surface-alt)",
             border: "1px solid var(--color-border)",
+
+            borderRadius: 16,
+
+            padding: 14,
+
+            background: "#fff",
+
+            display: "flex",
+
+            alignItems: "center",
+
+            gap: 12,
+
+            boxShadow: "var(--shadow-sm)"
           }}
         >
           <div
             style={{
-              width: 30,
-              height: 30,
+              width: 42,
+
+              height: 42,
+
               borderRadius: "50%",
+
               background: "var(--color-primary-soft)",
+
               color: "var(--color-primary)",
+
               display: "flex",
+
               alignItems: "center",
+
               justifyContent: "center",
+
               fontWeight: 700,
-              fontSize: 12,
-              flexShrink: 0,
+
+              fontSize: 15
             }}
           >
-            {(user?.fullName || user?.email || "?").slice(0, 1).toUpperCase()}
+            {(user?.fullName || user?.email || "?")
+              .charAt(0)
+              .toUpperCase()}
           </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+
+          <div
+            style={{
+              flex: 1,
+
+              overflow: "hidden"
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+
+                fontSize: 14,
+
+                whiteSpace: "nowrap",
+
+                overflow: "hidden",
+
+                textOverflow: "ellipsis"
+              }}
+            >
               {user?.fullName || user?.email}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{user?.role}</div>
+
+            <div
+              style={{
+                fontSize: 12,
+
+                color: "var(--color-muted)"
+              }}
+            >
+              {user?.role}
+            </div>
           </div>
+
           <button
             onClick={logout}
-            title="Se déconnecter"
+            title="Déconnexion"
             style={{
               border: "none",
+
               background: "transparent",
+
+              cursor: "pointer",
+
               color: "var(--color-muted)",
-              padding: 4,
-              borderRadius: 6,
+
+              padding: 6,
+
+              borderRadius: 8
             }}
           >
-            <LogOut size={16} />
+            <LogOut size={18} />
           </button>
         </div>
       </div>
