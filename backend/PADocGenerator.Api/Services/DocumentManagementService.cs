@@ -168,6 +168,7 @@ public class DocumentManagementService : IDocumentManagementService
             documentation.Status.ToString(),
             documentation.CurrentVersionNumber,
             content,
+            documentation.CreatedByUserId,
             documentation.CreatedAtUtc,
             documentation.UpdatedAtUtc);
     }

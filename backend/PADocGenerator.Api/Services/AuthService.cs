@@ -95,6 +95,6 @@ public class AuthService : IAuthService
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-        return new LoginResponseDto(tokenString, expiresAt, user.FullName, user.Role.ToString());
+        return new LoginResponseDto(user.Id, tokenString, expiresAt, user.FullName, user.Role.ToString());
     }
 }

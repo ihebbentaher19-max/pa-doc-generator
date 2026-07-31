@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Services.Interfaces;
 
 namespace PADocGenerator.Api.Controllers;
@@ -30,6 +31,9 @@ public class ExportController : ControllerBase
     {
         var documentation = await _managementService.GetByIdAsync(id, ct);
         if (documentation is null) return NotFound();
+
+        if (!User.CanModify(documentation.CreatedByUserId))
+            return Forbid();
 
         var (content, fileName, contentType) = await _exportService.ExportAsync(documentation, format, ct);
         return File(content, contentType, fileName);

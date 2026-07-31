@@ -42,6 +42,7 @@ public record DocumentationDetailDto(
     string Status,
     int CurrentVersionNumber,
     DocumentationContentDto Content,
+    Guid CreatedByUserId,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc
 );

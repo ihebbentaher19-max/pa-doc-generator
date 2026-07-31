@@ -78,6 +78,9 @@ public class DocumentationController : ControllerBase
         var existing = await _managementService.GetByIdAsync(id, ct);
         if (existing is null) return NotFound();
 
+        if (!User.CanModify(existing.CreatedByUserId))
+            return Forbid();
+
         var flowImport = await _db.FlowImports.FindAsync([existing.FlowImportId], ct);
         if (flowImport is null || !flowImport.IsValid)
             return UnprocessableEntity(new { message = "Le flux d'origine est introuvable ou invalide." });
@@ -106,28 +109,29 @@ public class DocumentationController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<DocumentationDetailDto>> Update(Guid id, UpdateDocumentationDto dto, CancellationToken ct)
     {
-        try
-        {
-            var updated = await _managementService.UpdateAsync(id, User.GetUserId(), dto, ct);
-            return Ok(updated);
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        var existing = await _managementService.GetByIdAsync(id, ct);
+        if (existing is null) return NotFound();
+
+        if (!User.CanModify(existing.CreatedByUserId))
+            return Forbid();
+
+        var updated = await _managementService.UpdateAsync(id, User.GetUserId(), dto, ct);
+        return Ok(updated);
     }
 
     [HttpPatch("{id:guid}/status")]
     public async Task<ActionResult<DocumentationDetailDto>> ChangeStatus(Guid id, ChangeStatusDto dto, CancellationToken ct)
     {
+        var existing = await _managementService.GetByIdAsync(id, ct);
+        if (existing is null) return NotFound();
+
+        if (!User.CanModify(existing.CreatedByUserId))
+            return Forbid();
+
         try
         {
             var updated = await _managementService.ChangeStatusAsync(id, dto.NewStatus, ct);
             return Ok(updated);
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
         }
         catch (ArgumentException ex)
         {
