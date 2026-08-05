@@ -20,7 +20,7 @@ namespace PADocGenerator.Tests;
 /// </summary>
 public class SearchServiceTests
 {
-    private static (SearchService Sut, Api.Data.AppDbContext Db) CreateSutWithSeededData()
+    private static (SearchService Sut, Api.Data.AppDbContext Db, Guid CurrentUserId) CreateSutWithSeededData()
     {
         var db = TestDbContextFactory.Create();
 
@@ -38,15 +38,15 @@ public class SearchServiceTests
         db.Documentations.AddRange(docs);
         db.SaveChanges();
 
-        return (new SearchService(db), db);
+        return (new SearchService(db), db, user.Id);
     }
 
     [Fact]
     public async Task SearchAsync_NoFilters_ReturnsAllDocumentations()
     {
-        var (sut, _) = CreateSutWithSeededData();
+        var (sut, _, currentUserId) = CreateSutWithSeededData();
 
-        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, null));
+        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, null), currentUserId, isAdmin: true);
 
         totalCount.Should().Be(3);
         items.Should().HaveCount(3);
@@ -55,9 +55,9 @@ public class SearchServiceTests
     [Fact]
     public async Task SearchAsync_FilterByStatus_ReturnsOnlyMatchingDocumentations()
     {
-        var (sut, _) = CreateSutWithSeededData();
+        var (sut, _, currentUserId) = CreateSutWithSeededData();
 
-        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, "Valide"));
+        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, "Valide"), currentUserId, isAdmin: true);
 
         totalCount.Should().Be(1);
         items.Should().ContainSingle(d => d.Title == "Doc validee");
@@ -66,9 +66,9 @@ public class SearchServiceTests
     [Fact]
     public async Task SearchAsync_Pagination_RespectsPageSize()
     {
-        var (sut, _) = CreateSutWithSeededData();
+        var (sut, _, currentUserId) = CreateSutWithSeededData();
 
-        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, null, Page: 1, PageSize: 2));
+        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, null, Page: 1, PageSize: 2), currentUserId, isAdmin: true);
 
         totalCount.Should().Be(3); // le total ignore la pagination
         items.Should().HaveCount(2);
@@ -77,9 +77,9 @@ public class SearchServiceTests
     [Fact]
     public async Task SearchAsync_InvalidStatusString_IsIgnoredNotThrown()
     {
-        var (sut, _) = CreateSutWithSeededData();
+        var (sut, _, currentUserId) = CreateSutWithSeededData();
 
-        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, "StatutInexistant"));
+        var (items, totalCount) = await sut.SearchAsync(new SearchDocumentationQueryDto(null, "StatutInexistant"), currentUserId, isAdmin: true);
 
         // Enum.TryParse échoue silencieusement -> le filtre de statut n'est pas appliqué
         totalCount.Should().Be(3);

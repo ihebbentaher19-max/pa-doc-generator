@@ -101,7 +101,12 @@ public class DocumentationController : ControllerBase
     public async Task<ActionResult<DocumentationDetailDto>> GetById(Guid id, CancellationToken ct)
     {
         var documentation = await _managementService.GetByIdAsync(id, ct);
-        return documentation is null ? NotFound() : Ok(documentation);
+        if (documentation is null) return NotFound();
+
+        if (!User.CanModify(documentation.CreatedByUserId))
+            return Forbid();
+
+        return Ok(documentation);
     }
 
     /// <summary>Modification de la documentation générée avant enregistrement définitif
@@ -142,6 +147,12 @@ public class DocumentationController : ControllerBase
     [HttpGet("{id:guid}/versions")]
     public async Task<ActionResult<List<DocumentationVersionSummaryDto>>> GetVersions(Guid id, CancellationToken ct)
     {
+        var existing = await _managementService.GetByIdAsync(id, ct);
+        if (existing is null) return NotFound();
+
+        if (!User.CanModify(existing.CreatedByUserId))
+            return Forbid();
+
         return Ok(await _managementService.GetVersionHistoryAsync(id, ct));
     }
 
@@ -150,7 +161,8 @@ public class DocumentationController : ControllerBase
     [HttpGet("search")]
     public async Task<ActionResult> Search([FromQuery] SearchDocumentationQueryDto query, CancellationToken ct)
     {
-        var (items, totalCount) = await _searchService.SearchAsync(query, ct);
+        var (items, totalCount) = await _searchService.SearchAsync(
+            query, User.GetUserId(), User.IsInRole("Administrateur"), ct);
         return Ok(new { items, totalCount, page = query.Page, pageSize = query.PageSize });
     }
 

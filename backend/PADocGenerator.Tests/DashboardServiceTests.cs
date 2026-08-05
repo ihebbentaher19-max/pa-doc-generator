@@ -27,7 +27,7 @@ public class DashboardServiceTests
         db.SaveChanges();
 
         var sut = new DashboardService(db);
-        var stats = await sut.GetStatsAsync();
+        var stats = await sut.GetStatsAsync(user.Id, isAdmin: true);
 
         stats.TotalFlowsImported.Should().Be(2);
         stats.TotalDocumentations.Should().Be(4);
@@ -43,7 +43,7 @@ public class DashboardServiceTests
         var db = TestDbContextFactory.Create();
         var sut = new DashboardService(db);
 
-        var stats = await sut.GetStatsAsync();
+        var stats = await sut.GetStatsAsync(Guid.NewGuid(), isAdmin: true);
 
         stats.TotalDocumentations.Should().Be(0);
         stats.TotalFlowsImported.Should().Be(0);

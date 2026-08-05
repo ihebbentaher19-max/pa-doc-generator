@@ -78,6 +78,9 @@ public class FlowsController : ControllerBase
         var flow = await _db.FlowImports.FindAsync([id], ct);
         if (flow is null) return NotFound();
 
+        if (!User.CanModify(flow.ImportedByUserId))
+            return Forbid();
+
         return Ok(new FlowImportResultDto(flow.Id, flow.Name, flow.IsValid, flow.ValidationError, flow.ActionsCount, flow.ImportedAtUtc));
     }
 }

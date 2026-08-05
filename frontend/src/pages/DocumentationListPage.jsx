@@ -85,7 +85,9 @@ export default function DocumentationListPage() {
               >
                 <div className="stack" style={{ gap: 2, minWidth: 0 }}>
                   <span style={{ fontWeight: 600, fontSize: 13.5 }}>{doc.title}</span>
-                  <span style={{ fontSize: 12, color: "var(--color-muted)" }}>{doc.flowName} · v{doc.currentVersionNumber}</span>
+                  <span style={{ fontSize: 12, color: "var(--color-muted)" }}>
+                    {doc.flowName} · v{doc.currentVersionNumber} · {doc.createdByUserName}
+                  </span>
                 </div>
                 <div className="row" style={{ gap: 14, flexShrink: 0 }}>
                   <span style={{ fontSize: 12, color: "var(--color-muted)" }}>

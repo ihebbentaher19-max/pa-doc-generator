@@ -3,7 +3,7 @@ import axios from "axios";
 // L'URL de l'API backend (ASP.NET Core Web API) est configurable via une
 // variable d'environnement Vite, avec un repli sur le port de développement
 // local par défaut (cf. backend/PADocGenerator.Api/Properties/launchSettings.json).
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5080/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5090/api";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -66,5 +66,15 @@ apiClient.interceptors.response.use(
 
 /** Extrait un message d'erreur lisible depuis une réponse API en erreur. */
 export function getApiErrorMessage(error, fallback = "Une erreur est survenue.") {
-  return error?.response?.data?.message || error?.message || fallback;
+  if (!error) return fallback;
+
+  if (error.response?.data?.message) {
+    return error.response.data.message;
+  }
+
+  if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
+    return "Impossible de contacter le serveur backend. Vérifiez que l'API est démarrée et que l'URL est correcte.";
+  }
+
+  return error.message || fallback;
 }

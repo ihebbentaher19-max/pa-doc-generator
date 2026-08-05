@@ -28,6 +28,8 @@ public class DocumentManagementService : IDocumentManagementService
         var flow = await _db.FlowImports.FirstOrDefaultAsync(f => f.Id == flowImportId, ct)
             ?? throw new KeyNotFoundException($"Flux importé introuvable : {flowImportId}");
 
+        var creator = await _db.Users.FindAsync([createdByUserId], ct);
+
         var documentation = new Documentation
         {
             FlowImportId = flowImportId,
@@ -48,25 +50,37 @@ public class DocumentManagementService : IDocumentManagementService
             ChangeNote = "Génération initiale par le modèle d'IA."
         };
 
-        documentation.Versions.Add(version);
-
         _db.Documentations.Add(documentation);
+        _db.DocumentationVersions.Add(version);
+
         await _db.SaveChangesAsync(ct);
 
-        return MapToDetailDto(documentation, flow.Name, version);
+        return MapToDetailDto(documentation, flow.Name, version, creator?.FullName ?? "Inconnu");
     }
 
     public async Task<DocumentationDetailDto?> GetByIdAsync(Guid documentationId, CancellationToken ct = default)
     {
+        // AsNoTracking() est essentiel ici : GetByIdAsync est aussi utilisé comme
+        // pré-vérification (propriétaire/admin) avant Update/ChangeStatus/Regenerate,
+        // sur le même DbContext (scoped par requête). Sans AsNoTracking, cette lecture
+        // enregistrait déjà l'entité (et sa collection Versions) dans le suivi des
+        // modifications d'EF Core ; la requête de la méthode de mutation suivante
+        // rechargeait ensuite le même graphe par-dessus, ce qui corrompait le suivi
+        // des changements et provoquait un DbUpdateConcurrencyException ("0 rows
+        // affected") au moment du SaveChangesAsync, même si la ligne existait bien.
         var documentation = await _db.Documentations
+            .AsNoTracking()
             .Include(d => d.FlowImport)
             .Include(d => d.Versions)
+            .Include(d => d.CreatedByUser)
             .FirstOrDefaultAsync(d => d.Id == documentationId, ct);
 
         if (documentation is null) return null;
 
         var currentVersion = documentation.Versions.First(v => v.VersionNumber == documentation.CurrentVersionNumber);
-        return MapToDetailDto(documentation, documentation.FlowImport?.Name ?? "Flux inconnu", currentVersion);
+        return MapToDetailDto(
+            documentation, documentation.FlowImport?.Name ?? "Flux inconnu", currentVersion,
+            documentation.CreatedByUser?.FullName ?? "Inconnu");
     }
 
     public async Task<DocumentationDetailDto> UpdateAsync(
@@ -75,6 +89,7 @@ public class DocumentManagementService : IDocumentManagementService
         var documentation = await _db.Documentations
             .Include(d => d.FlowImport)
             .Include(d => d.Versions)
+            .Include(d => d.CreatedByUser)
             .FirstOrDefaultAsync(d => d.Id == documentationId, ct)
             ?? throw new KeyNotFoundException($"Documentation introuvable : {documentationId}");
 
@@ -85,6 +100,7 @@ public class DocumentManagementService : IDocumentManagementService
 
         var newVersion = new DocumentationVersion
         {
+            Documentation = documentation,
             DocumentationId = documentation.Id,
             VersionNumber = nextVersionNumber,
             FunctionalSummary = dto.Content.FunctionalSummary,
@@ -95,13 +111,17 @@ public class DocumentManagementService : IDocumentManagementService
         };
 
         documentation.Versions.Add(newVersion);
+        _db.DocumentationVersions.Add(newVersion);
+
         documentation.Title = dto.Title;
         documentation.CurrentVersionNumber = nextVersionNumber;
         documentation.UpdatedAtUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
-        return MapToDetailDto(documentation, documentation.FlowImport?.Name ?? "Flux inconnu", newVersion);
+        return MapToDetailDto(
+            documentation, documentation.FlowImport?.Name ?? "Flux inconnu", newVersion,
+            documentation.CreatedByUser?.FullName ?? "Inconnu");
     }
 
     public async Task<DocumentationDetailDto> ChangeStatusAsync(
@@ -116,6 +136,7 @@ public class DocumentManagementService : IDocumentManagementService
         var documentation = await _db.Documentations
             .Include(d => d.FlowImport)
             .Include(d => d.Versions)
+            .Include(d => d.CreatedByUser)
             .FirstOrDefaultAsync(d => d.Id == documentationId, ct)
             ?? throw new KeyNotFoundException($"Documentation introuvable : {documentationId}");
 
@@ -124,7 +145,9 @@ public class DocumentManagementService : IDocumentManagementService
         await _db.SaveChangesAsync(ct);
 
         var currentVersion = documentation.Versions.First(v => v.VersionNumber == documentation.CurrentVersionNumber);
-        return MapToDetailDto(documentation, documentation.FlowImport?.Name ?? "Flux inconnu", currentVersion);
+        return MapToDetailDto(
+            documentation, documentation.FlowImport?.Name ?? "Flux inconnu", currentVersion,
+            documentation.CreatedByUser?.FullName ?? "Inconnu");
     }
 
     public async Task<List<DocumentationVersionSummaryDto>> GetVersionHistoryAsync(
@@ -155,7 +178,8 @@ public class DocumentManagementService : IDocumentManagementService
         await _db.SaveChangesAsync(ct);
     }
 
-    private static DocumentationDetailDto MapToDetailDto(Documentation documentation, string flowName, DocumentationVersion version)
+    private static DocumentationDetailDto MapToDetailDto(
+        Documentation documentation, string flowName, DocumentationVersion version, string createdByUserName)
     {
         var content = JsonSerializer.Deserialize<DocumentationContentDto>(version.StructuredContentJson, JsonOptions)
             ?? new DocumentationContentDto(version.FunctionalSummary, new(), new(), new());
@@ -169,6 +193,7 @@ public class DocumentManagementService : IDocumentManagementService
             documentation.CurrentVersionNumber,
             content,
             documentation.CreatedByUserId,
+            createdByUserName,
             documentation.CreatedAtUtc,
             documentation.UpdatedAtUtc);
     }

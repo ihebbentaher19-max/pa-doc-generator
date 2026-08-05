@@ -23,6 +23,7 @@
     <!-- Auth JWT (gestion des rôles admin/utilisateur) -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.10" />
+    <PackageReference Include="OpenAI" Version="2.12.0" />
 
     <!-- Export PDF / Word (module d'export) -->
     <PackageReference Include="QuestPDF" Version="2024.10.3" />

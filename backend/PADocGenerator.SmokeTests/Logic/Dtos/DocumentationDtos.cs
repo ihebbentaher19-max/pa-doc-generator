@@ -31,6 +31,7 @@ public record DocumentationSummaryDto(
     string FlowName,
     string Status,
     int CurrentVersionNumber,
+    string CreatedByUserName,
     DateTime UpdatedAtUtc
 );
 
@@ -43,6 +44,7 @@ public record DocumentationDetailDto(
     int CurrentVersionNumber,
     DocumentationContentDto Content,
     Guid CreatedByUserId,
+    string CreatedByUserName,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc
 );

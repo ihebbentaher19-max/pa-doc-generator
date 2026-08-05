@@ -175,6 +175,15 @@ export default function DocumentationDetailPage() {
 
   return (
     <div className="page-content">
+      {!canModify && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Callout tone="info">
+            Cette documentation a été créée par {doc.createdByUserName} : vous pouvez la consulter, mais seul son
+            auteur ou un administrateur peut la modifier, changer son statut, la régénérer ou l'exporter.
+          </Callout>
+        </div>
+      )}
+
       <PageHeader
         eyebrow={doc.flowName}
         title={
@@ -222,18 +231,9 @@ export default function DocumentationDetailPage() {
       <div className="row" style={{ gap: 10, marginBottom: "var(--space-5)" }}>
         <StatusBadge status={doc.status} />
         <span style={{ fontSize: 12.5, color: "var(--color-muted)" }}>
-          Version v{doc.currentVersionNumber} · mis à jour le {new Date(doc.updatedAtUtc).toLocaleString("fr-FR")}
+          Version v{doc.currentVersionNumber} · créée par {doc.createdByUserName} · mise à jour le {new Date(doc.updatedAtUtc).toLocaleString("fr-FR")}
         </span>
       </div>
-
-      {!canModify && (
-        <div style={{ marginBottom: "var(--space-4)" }}>
-          <Callout tone="info">
-            Cette documentation a été créée par un autre utilisateur : vous pouvez la consulter, mais seul son
-            auteur ou un administrateur peut la modifier, changer son statut, la régénérer ou l'exporter.
-          </Callout>
-        </div>
-      )}
 
       {saveMessage && (
         <div style={{ marginBottom: "var(--space-4)" }}>

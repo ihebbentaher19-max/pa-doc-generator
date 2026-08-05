@@ -19,17 +19,27 @@ public class DashboardService : IDashboardService
         _db = db;
     }
 
-    public async Task<DashboardStatsDto> GetStatsAsync(CancellationToken ct = default)
+    public async Task<DashboardStatsDto> GetStatsAsync(Guid currentUserId, bool isAdmin, CancellationToken ct = default)
     {
-        var totalDocumentations = await _db.Documentations.CountAsync(ct);
-        var totalFlowsImported = await _db.FlowImports.CountAsync(ct);
+        var documentations = _db.Documentations.AsQueryable();
+        var flowImports = _db.FlowImports.AsQueryable();
 
-        var draftCount = await _db.Documentations.CountAsync(d => d.Status == DocumentationStatus.Brouillon, ct);
-        var validatedCount = await _db.Documentations.CountAsync(d => d.Status == DocumentationStatus.Valide, ct);
-        var archivedCount = await _db.Documentations.CountAsync(d => d.Status == DocumentationStatus.Archive, ct);
+        if (!isAdmin)
+        {
+            documentations = documentations.Where(d => d.CreatedByUserId == currentUserId);
+            flowImports = flowImports.Where(f => f.ImportedByUserId == currentUserId);
+        }
 
-        var recent = await _db.Documentations
+        var totalDocumentations = await documentations.CountAsync(ct);
+        var totalFlowsImported = await flowImports.CountAsync(ct);
+
+        var draftCount = await documentations.CountAsync(d => d.Status == DocumentationStatus.Brouillon, ct);
+        var validatedCount = await documentations.CountAsync(d => d.Status == DocumentationStatus.Valide, ct);
+        var archivedCount = await documentations.CountAsync(d => d.Status == DocumentationStatus.Archive, ct);
+
+        var recent = await documentations
             .Include(d => d.FlowImport)
+            .Include(d => d.CreatedByUser)
             .OrderByDescending(d => d.UpdatedAtUtc)
             .Take(10)
             .Select(d => new DocumentationSummaryDto(
@@ -38,6 +48,7 @@ public class DashboardService : IDashboardService
                 d.FlowImport != null ? d.FlowImport.Name : "Flux inconnu",
                 d.Status.ToString(),
                 d.CurrentVersionNumber,
+                d.CreatedByUser != null ? d.CreatedByUser.FullName : "Inconnu",
                 d.UpdatedAtUtc))
             .ToListAsync(ct);
 
