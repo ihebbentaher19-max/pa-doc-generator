@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Models.Dtos;
 using PADocGenerator.Api.Services;
 using Xunit;
@@ -44,14 +45,14 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_DuplicateEmail_ThrowsInvalidOperationException()
+    public async Task RegisterAsync_DuplicateEmail_ThrowsBuisnessException()
     {
         var sut = CreateSut(out _);
         await sut.RegisterAsync(new RegisterUserDto("Jane Doe", "jane@contoso.com", "MotDePasse#2026"));
 
         var act = () => sut.RegisterAsync(new RegisterUserDto("Jane Bis", "jane@contoso.com", "AutreMotDePasse#1"));
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("Un compte existe déjà avec cet e-mail.");
     }
 
     [Fact]
