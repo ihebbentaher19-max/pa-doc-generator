@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Data;
 using PADocGenerator.Api.Models.Dtos;
 using PADocGenerator.Api.Models.Entities;
@@ -50,7 +51,7 @@ public class AuthService : IAuthService
     {
         var alreadyExists = await _db.Users.AnyAsync(u => u.Email == request.Email, ct);
         if (alreadyExists)
-            throw new InvalidOperationException("Un compte existe déjà avec cet e-mail.");
+            throw new BusinessException(UserMessages.DuplicateEmail);
 
         // Le premier compte créé sur la plateforme devient automatiquement
         // Administrateur ; les suivants sont Utilisateur par défaut (un

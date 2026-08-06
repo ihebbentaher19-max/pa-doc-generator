@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using PADocGenerator.Api.Common;
 
 namespace PADocGenerator.Api.Middleware;
 
@@ -32,8 +34,12 @@ public class ExceptionHandlingMiddleware
             {
                 KeyNotFoundException => HttpStatusCode.NotFound,
                 UnauthorizedAccessException => HttpStatusCode.Unauthorized,
+                BusinessException => HttpStatusCode.BadRequest,
                 ArgumentException => HttpStatusCode.BadRequest,
-                InvalidOperationException => HttpStatusCode.UnprocessableEntity,
+                InvalidOperationException => ex.Message.Contains("Version actuelle", StringComparison.OrdinalIgnoreCase)
+                    ? HttpStatusCode.UnprocessableEntity
+                    : HttpStatusCode.InternalServerError,
+                DbUpdateException => HttpStatusCode.UnprocessableEntity,
                 _ => HttpStatusCode.InternalServerError
             };
 
@@ -42,12 +48,43 @@ public class ExceptionHandlingMiddleware
 
             var payload = JsonSerializer.Serialize(new
             {
-                message = statusCode == HttpStatusCode.InternalServerError
-                    ? "Une erreur interne est survenue."
-                    : ex.Message
+                message = GetUserFacingMessage(ex, statusCode)
             });
 
             await context.Response.WriteAsync(payload);
         }
+    }
+
+    private static string GetUserFacingMessage(Exception ex, HttpStatusCode statusCode)
+    {
+        return statusCode switch
+        {
+            HttpStatusCode.InternalServerError => UserMessages.InternalError,
+            _ when ex is DbUpdateException => "La donnée envoyée n'est pas valide et n'a pas pu être enregistrée.",
+            _ when ex is BusinessException => ex.Message,
+            _ when ex is KeyNotFoundException => MapKnownNotFoundMessage(ex.Message),
+            _ when ex is ArgumentException => ex.Message.Contains("Statut", StringComparison.OrdinalIgnoreCase)
+                ? UserMessages.InvalidStatus
+                : ex.Message,
+            _ when ex is InvalidOperationException => ex.Message.Contains("Version actuelle", StringComparison.OrdinalIgnoreCase)
+                ? UserMessages.ActiveVersionNotFound
+                : UserMessages.InternalError,
+            _ => UserMessages.InternalError
+        };
+    }
+
+    private static string MapKnownNotFoundMessage(string message)
+    {
+        if (message.Contains("Version", StringComparison.OrdinalIgnoreCase))
+        {
+            return UserMessages.VersionNotFound;
+        }
+
+        if (message.Contains("Flux", StringComparison.OrdinalIgnoreCase))
+        {
+            return UserMessages.FlowImportNotFound;
+        }
+
+        return UserMessages.DocumentationNotFound;
     }
 }

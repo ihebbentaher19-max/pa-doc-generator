@@ -51,10 +51,10 @@ public class DocumentationController : ControllerBase
     {
         var flowImport = await _db.FlowImports.FindAsync([request.FlowImportId], ct);
         if (flowImport is null)
-            return NotFound(new { message = "Flux importé introuvable." });
+            return NotFound(new { message = UserMessages.FlowImportNotFound });
 
         if (!flowImport.IsValid)
-            return UnprocessableEntity(new { message = "Ce flux n'a pas passé la validation lors de l'import et ne peut pas être documenté." });
+            return UnprocessableEntity(new { message = UserMessages.InvalidFlowForDocumentation });
 
         var parsedFlow = _flowParserService.Parse(flowImport.RawJson);
         var rawContent = await _aiDocumentationService.GenerateAsync(parsedFlow, ct);
@@ -76,14 +76,15 @@ public class DocumentationController : ControllerBase
     public async Task<ActionResult<DocumentationDetailDto>> Regenerate(Guid id, CancellationToken ct)
     {
         var existing = await _managementService.GetByIdAsync(id, ct);
-        if (existing is null) return NotFound();
+        if (existing is null)
+            return NotFound(new { message = UserMessages.DocumentationNotFound });
 
         if (!User.CanModify(existing.CreatedByUserId))
             return Forbid();
 
         var flowImport = await _db.FlowImports.FindAsync([existing.FlowImportId], ct);
         if (flowImport is null || !flowImport.IsValid)
-            return UnprocessableEntity(new { message = "Le flux d'origine est introuvable ou invalide." });
+            return UnprocessableEntity(new { message = UserMessages.InvalidOriginFlow });
 
         var parsedFlow = _flowParserService.Parse(flowImport.RawJson);
         var rawContent = await _aiDocumentationService.GenerateAsync(parsedFlow, ct);
@@ -92,7 +93,7 @@ public class DocumentationController : ControllerBase
         var updated = await _managementService.UpdateAsync(
             id, User.GetUserId(),
             new UpdateDocumentationDto(existing.Title, formattedContent, "Régénération via IA."),
-            ct);
+            false, ct);
 
         return Ok(updated);
     }
@@ -101,7 +102,8 @@ public class DocumentationController : ControllerBase
     public async Task<ActionResult<DocumentationDetailDto>> GetById(Guid id, CancellationToken ct)
     {
         var documentation = await _managementService.GetByIdAsync(id, ct);
-        if (documentation is null) return NotFound();
+        if (documentation is null)
+            return NotFound(new { message = UserMessages.DocumentationNotFound });
 
         if (!User.CanModify(documentation.CreatedByUserId))
             return Forbid();
@@ -115,12 +117,13 @@ public class DocumentationController : ControllerBase
     public async Task<ActionResult<DocumentationDetailDto>> Update(Guid id, UpdateDocumentationDto dto, CancellationToken ct)
     {
         var existing = await _managementService.GetByIdAsync(id, ct);
-        if (existing is null) return NotFound();
+        if (existing is null)
+            return NotFound(new { message = UserMessages.DocumentationNotFound });
 
         if (!User.CanModify(existing.CreatedByUserId))
             return Forbid();
 
-        var updated = await _managementService.UpdateAsync(id, User.GetUserId(), dto, ct);
+        var updated = await _managementService.UpdateAsync(id, User.GetUserId(), dto, true, ct);
         return Ok(updated);
     }
 
@@ -128,7 +131,7 @@ public class DocumentationController : ControllerBase
     public async Task<ActionResult<DocumentationDetailDto>> ChangeStatus(Guid id, ChangeStatusDto dto, CancellationToken ct)
     {
         var existing = await _managementService.GetByIdAsync(id, ct);
-        if (existing is null) return NotFound();
+        if (existing is null) return NotFound(new { message = UserMessages.DocumentationNotFound });
 
         if (!User.CanModify(existing.CreatedByUserId))
             return Forbid();
@@ -138,9 +141,9 @@ public class DocumentationController : ControllerBase
             var updated = await _managementService.ChangeStatusAsync(id, dto.NewStatus, ct);
             return Ok(updated);
         }
-        catch (ArgumentException ex)
+        catch (BusinessException)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { message = UserMessages.InvalidStatus });
         }
     }
 
@@ -148,12 +151,33 @@ public class DocumentationController : ControllerBase
     public async Task<ActionResult<List<DocumentationVersionSummaryDto>>> GetVersions(Guid id, CancellationToken ct)
     {
         var existing = await _managementService.GetByIdAsync(id, ct);
-        if (existing is null) return NotFound();
+        if (existing is null)
+            return NotFound(new { message = UserMessages.DocumentationNotFound });
 
         if (!User.CanModify(existing.CreatedByUserId))
             return Forbid();
 
         return Ok(await _managementService.GetVersionHistoryAsync(id, ct));
+    }
+
+    [HttpGet("{id:guid}/versions/{versionNumber:int}")]
+    public async Task<ActionResult<DocumentationVersionDetailDto>> GetVersion(Guid id, int versionNumber, CancellationToken ct)
+    {
+        var existing = await _managementService.GetByIdAsync(id, ct);
+        if (existing is null)
+            return NotFound(new { message = UserMessages.DocumentationNotFound });
+
+        if (!User.CanModify(existing.CreatedByUserId))
+            return Forbid();
+
+        try
+        {
+            return Ok(await _managementService.GetVersionAsync(id, versionNumber, ct));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { message = UserMessages.VersionNotFound });
+        }
     }
 
     /// <summary>Module de recherche et consultation (section 6) : recherche par
@@ -179,7 +203,7 @@ public class DocumentationController : ControllerBase
         }
         catch (KeyNotFoundException)
         {
-            return NotFound();
+            return NotFound(new { message = UserMessages.DocumentationNotFound });
         }
     }
 }

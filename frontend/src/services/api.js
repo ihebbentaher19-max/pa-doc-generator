@@ -68,8 +68,10 @@ apiClient.interceptors.response.use(
 export function getApiErrorMessage(error, fallback = "Une erreur est survenue.") {
   if (!error) return fallback;
 
-  if (error.response?.data?.message) {
-    return error.response.data.message;
+  const payload = error.response?.data;
+  const businessMessage = payload?.message || payload?.validationError || payload?.error || payload?.detail;
+  if (businessMessage) {
+    return businessMessage;
   }
 
   if (error.code === "ERR_NETWORK" || error.message === "Network Error") {

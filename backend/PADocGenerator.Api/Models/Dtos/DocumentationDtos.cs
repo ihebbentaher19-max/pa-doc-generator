@@ -62,7 +62,18 @@ public record DocumentationVersionSummaryDto(
     bool IsManuallyEdited,
     string EditedByFullName,
     DateTime CreatedAtUtc,
-    string? ChangeNote
+    string? ChangeNote,
+    DocumentationContentDto Content
+);
+
+public record DocumentationVersionDetailDto(
+    Guid DocumentationId,
+    int VersionNumber,
+    bool IsManuallyEdited,
+    string EditedByFullName,
+    DateTime CreatedAtUtc,
+    string? ChangeNote,
+    DocumentationContentDto Content
 );
 
 public record SearchDocumentationQueryDto(

@@ -126,19 +126,7 @@ export default function Sidebar() {
               lineHeight: 1.2
             }}
           >
-            PA Doc Generator
-          </div>
-
-          <div
-            style={{
-              color: "var(--color-muted)",
-
-              fontSize: 12,
-
-              marginTop: 2
-            }}
-          >
-            Documentation IA
+            Générateur de documentation IA pour Power Automate
           </div>
         </div>
       </div>

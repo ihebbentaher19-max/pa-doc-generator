@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Services;
 using Xunit;
 
@@ -36,6 +37,14 @@ public class FlowValidationServiceTests
         const string json = """{ "name": "Flux vide", "properties": { "definition": { "foo": "bar" } } }""";
         var result = _sut.Validate(json);
         result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Validate_JsonStringLiteral_ReturnsInvalidBusinessMessage()
+    {
+        var result = _sut.Validate("\"ce n'est pas un flux\"");
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Be(UserMessages.InvalidFlowFormat);
     }
 
     [Fact]

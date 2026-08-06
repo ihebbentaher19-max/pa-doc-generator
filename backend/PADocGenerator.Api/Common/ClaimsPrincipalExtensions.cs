@@ -11,7 +11,7 @@ public static class ClaimsPrincipalExtensions
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (value is null || !Guid.TryParse(value, out var userId))
-            throw new UnauthorizedAccessException("Jeton invalide : identifiant utilisateur introuvable.");
+            throw new UnauthorizedAccessException(UserMessages.InvalidSession);
 
         return userId;
     }

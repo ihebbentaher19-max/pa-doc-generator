@@ -70,6 +70,30 @@ public class DocumentManagementServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_PersistsFullContentInNewVersion()
+    {
+        var (sut, _, userId, flowId) = CreateSutWithSeededFlow();
+        var created = await sut.CreateFromGenerationAsync(flowId, userId, SampleContent());
+
+        var updatedContent = new DocumentationContentDto(
+            "Résumé modifié",
+            new List<DocumentationStepDto> { new("Étape 2", "Description 2", true) },
+            new List<DocumentationDependencyDto> { new("Étape 1", "Étape 2", "Dépendance de test") },
+            new List<string> { "Étape 2" });
+
+        await sut.UpdateAsync(
+            created.Id,
+            userId,
+            new UpdateDocumentationDto("Titre modifié", updatedContent, "Correction manuelle"));
+
+        var version = await sut.GetVersionAsync(created.Id, 2);
+        version.Content.FunctionalSummary.Should().Be("Résumé modifié");
+        version.Content.Steps.Should().ContainSingle(s => s.StepName == "Étape 2" && s.IsImportant);
+        version.Content.Dependencies.Should().ContainSingle(d => d.From == "Étape 1" && d.To == "Étape 2");
+        version.Content.ImportantSteps.Should().ContainSingle(s => s == "Étape 2");
+    }
+
+    [Fact]
     public async Task ChangeStatusAsync_ValidStatus_UpdatesStatus()
     {
         var (sut, _, userId, flowId) = CreateSutWithSeededFlow();

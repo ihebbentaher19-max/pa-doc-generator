@@ -40,6 +40,7 @@ export default function DocumentationDetailPage() {
 
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState([]);
+  const [expandedVersion, setExpandedVersion] = useState(null);
 
   function loadDocument() {
     setIsLoading(true);
@@ -56,6 +57,7 @@ export default function DocumentationDetailPage() {
   useEffect(loadDocument, [id]);
 
   async function handleSave() {
+    if (!hasUnsavedChanges) return;
     setIsSaving(true);
     setSaveMessage(null);
     try {
@@ -130,6 +132,8 @@ export default function DocumentationDetailPage() {
     if (!showHistory) {
       const data = await getVersionHistory(id);
       setVersions(data);
+    } else {
+      setExpandedVersion(null);
     }
     setShowHistory((v) => !v);
   }
@@ -172,6 +176,12 @@ export default function DocumentationDetailPage() {
   // statut, régénérer ou exporter que ses propres documentations ; un
   // administrateur peut agir sur toutes les documentations.
   const canModify = isAdmin || doc.createdByUserId === user?.id;
+
+  // Section 4 : n'autoriser l'enregistrement que s'il y a une modification
+  // réelle par rapport à la version actuellement chargée, pour éviter de
+  // créer des versions vides dans l'historique.
+  const hasUnsavedChanges =
+    title !== doc.title || JSON.stringify(content) !== JSON.stringify(doc.content);
 
   return (
     <div className="page-content">
@@ -216,8 +226,8 @@ export default function DocumentationDetailPage() {
             <Button variant="secondary" onClick={() => handleExport("word")} disabled={isExporting === "word" || !canModify}>
               <Download size={15} /> {isExporting === "word" ? "Export…" : "Word"}
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !canModify}>
-              <Save size={15} /> {isSaving ? "Enregistrement…" : "Enregistrer"}
+            <Button onClick={handleSave} disabled={isSaving || !canModify || !hasUnsavedChanges}>
+              <Save size={15} /> {isSaving ? "Enregistrement…" : hasUnsavedChanges ? "Enregistrer" : "Aucune modification"}
             </Button>
             {isAdmin && (
               <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
@@ -245,15 +255,69 @@ export default function DocumentationDetailPage() {
         <div className="card" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)" }}>
           <h3 style={{ marginBottom: 10 }}>Historique des versions</h3>
           <div className="stack" style={{ gap: 8 }}>
-            {versions.map((v) => (
-              <div key={v.versionNumber} className="row" style={{ justifyContent: "space-between", fontSize: 13 }}>
-                <span>
-                  <strong>v{v.versionNumber}</strong> — {v.isManuallyEdited ? "modification manuelle" : "génération IA"} par {v.editedByFullName}
-                  {v.changeNote ? ` — ${v.changeNote}` : ""}
-                </span>
-                <span style={{ color: "var(--color-muted)" }}>{new Date(v.createdAtUtc).toLocaleString("fr-FR")}</span>
-              </div>
-            ))}
+            {versions.map((v) => {
+              const isExpanded = expandedVersion === v.versionNumber;
+              return (
+                <div key={v.versionNumber} className="stack" style={{ gap: 0 }}>
+                  <button
+                    onClick={() => setExpandedVersion(isExpanded ? null : v.versionNumber)}
+                    className="row"
+                    style={{
+                      justifyContent: "space-between",
+                      fontSize: 13,
+                      width: "100%",
+                      border: "none",
+                      background: "transparent",
+                      padding: "6px 0",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span>
+                      {isExpanded ? "▾" : "▸"} <strong>v{v.versionNumber}</strong> — {v.isManuallyEdited ? "modification manuelle" : "génération IA"} par {v.editedByFullName}
+                      {v.changeNote ? ` — ${v.changeNote}` : ""}
+                    </span>
+                    <span style={{ color: "var(--color-muted)" }}>{new Date(v.createdAtUtc).toLocaleString("fr-FR")}</span>
+                  </button>
+
+                  {isExpanded && (
+                    <div
+                      className="stack"
+                      style={{ gap: 10, padding: "10px 12px", marginBottom: 6, background: "var(--color-surface-alt)", borderRadius: "var(--radius-sm)", fontSize: 13 }}
+                    >
+                      <div>
+                        <strong>Résumé fonctionnel :</strong>
+                        <p style={{ margin: "4px 0 0", color: "var(--color-muted)" }}>{v.content.functionalSummary}</p>
+                      </div>
+
+                      {v.content.steps.length > 0 && (
+                        <div>
+                          <strong>Étapes ({v.content.steps.length}) :</strong>
+                          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                            {v.content.steps.map((s, i) => (
+                              <li key={i}>
+                                {s.isImportant ? "★ " : ""}{s.stepName} — <span style={{ color: "var(--color-muted)" }}>{s.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {v.content.dependencies.length > 0 && (
+                        <div>
+                          <strong>Dépendances ({v.content.dependencies.length}) :</strong>
+                          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                            {v.content.dependencies.map((d, i) => (
+                              <li key={i}>{d.from} → {d.to} : <span style={{ color: "var(--color-muted)" }}>{d.explanationText}</span></li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
