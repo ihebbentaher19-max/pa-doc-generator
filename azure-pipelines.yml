@@ -1,135 +1,177 @@
-# Pipeline CI/CD Azure DevOps - Générateur de documentation IA pour Power Automate
-# Cf. cahier des charges, section 5 : "Azure DevOps ... gestion de projet intégrée
-# (backlog, sprints) ... pipelines de build, de test et de déploiement."
-
 trigger:
   branches:
     include:
       - main
 
-# NOTE IMPORTANTE : contrairement a GitHub, Azure Repos Git IGNORE le bloc
-# YAML "pr:" ci-dessous pour declencher une validation de Pull Request.
-# Sur Azure Repos, la validation de PR doit etre configuree via une
-# POLITIQUE DE BRANCHE (Repos > Branches > main > Branch policies >
-# Build Validation > selectionner ce pipeline). Le bloc "pr:" est laisse
-# ici a titre indicatif / au cas ou le depot serait un jour miroir sur
-# GitHub, mais n'a aucun effet sur Azure Repos tant que la politique de
-# branche n'est pas configuree manuellement dans l'interface.
 pr:
   branches:
     include:
       - main
 
 pool:
-  vmImage: "ubuntu-latest"
+  vmImage: ubuntu-latest
 
 variables:
   dotnetVersion: "8.0.x"
   nodeVersion: "20.x"
-  # A renseigner dans Pipelines > Edit > Variables (ou une variable group liee),
-  # PAS en dur ici : noms des ressources Azure cibles pour le deploiement.
-  # azureSubscriptionServiceConnection: '<nom-de-la-service-connection-azure-rm>'
-  # backendAppServiceName: '<nom-de-l-App-Service-backend>'
-  # frontendStaticWebAppName: '<nom-de-la-Static-Web-App-frontend>'
+
+  azureSubscriptionServiceConnection: "ai document generation service connection"
+  backendAppServiceName: "documentation-powerautomate"
 
 stages:
-  # ---------------------------------------------------------------------
-  - stage: Backend
-    displayName: "Backend - ASP.NET Core Web API"
-    jobs:
-      - job: BuildAndTest
-        steps:
-          - task: UseDotNet@2
-            displayName: "Installer .NET SDK"
-            inputs:
-              version: $(dotnetVersion)
 
-          - script: dotnet restore backend/PADocGenerator.sln
-            displayName: "dotnet restore"
+# =====================================================================
+# BACKEND
+# =====================================================================
 
-          - script: dotnet build backend/PADocGenerator.sln --no-restore --configuration Release
-            displayName: "dotnet build"
+- stage: Backend
+  displayName: "Backend - Build & Test"
 
-          - script: dotnet test backend/PADocGenerator.Tests/PADocGenerator.Tests.csproj --no-build --configuration Release --logger trx
-            displayName: "dotnet test"
+  jobs:
 
-          - task: PublishTestResults@2
-            condition: succeededOrFailed()
-            inputs:
-              testResultsFormat: "VSTest"
-              testResultsFiles: "**/*.trx"
+  - job: BuildBackend
 
-          - script: dotnet publish backend/PADocGenerator.Api/PADocGenerator.Api.csproj --no-build --configuration Release --output $(Build.ArtifactStagingDirectory)/backend
-            displayName: "dotnet publish (pour deploiement)"
-            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    steps:
 
-          - publish: $(Build.ArtifactStagingDirectory)/backend
+    - task: UseDotNet@2
+      displayName: "Installer .NET SDK"
+
+      inputs:
+        version: $(dotnetVersion)
+
+    - script: |
+        dotnet restore backend/PADocGenerator.sln
+      displayName: Restore
+
+    - script: |
+        dotnet build backend/PADocGenerator.sln --configuration Release --no-restore
+      displayName: Build
+
+    - script: |
+        dotnet test backend/PADocGenerator.Tests/PADocGenerator.Tests.csproj --configuration Release --no-build --logger trx
+      displayName: Tests
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+
+      inputs:
+        testResultsFormat: VSTest
+        testResultsFiles: "**/*.trx"
+
+    - script: |
+        dotnet publish backend/PADocGenerator.Api/PADocGenerator.Api.csproj \
+          --configuration Release \
+          --no-build \
+          --output $(Build.ArtifactStagingDirectory)/backend
+      displayName: Publish Backend
+
+    - publish: $(Build.ArtifactStagingDirectory)/backend
+      artifact: backend-publish
+
+# =====================================================================
+# FRONTEND
+# =====================================================================
+
+- stage: Frontend
+  displayName: "Frontend - React"
+
+  jobs:
+
+  - job: BuildFrontend
+
+    steps:
+
+    - task: NodeTool@0
+      displayName: "Installer Node"
+
+      inputs:
+        versionSpec: $(nodeVersion)
+
+    - script: npm ci
+      workingDirectory: frontend
+      displayName: Installer dépendances
+
+    - script: npm run lint
+      workingDirectory: frontend
+      displayName: Lint
+
+    - script: npm run build
+      workingDirectory: frontend
+      displayName: Build React
+
+    - publish: frontend/dist
+      artifact: frontend-dist
+
+# =====================================================================
+# DEPLOIEMENT
+# =====================================================================
+
+- stage: Deploy
+
+  displayName: "Déploiement"
+
+  dependsOn:
+    - Backend
+    - Frontend
+
+  condition: succeeded()
+
+  jobs:
+
+  - deployment: Production
+
+    displayName: "Déploiement Production"
+
+    environment: production
+
+    strategy:
+
+      runOnce:
+
+        deploy:
+
+          steps:
+
+          ##################################
+          # Télécharger les artifacts
+          ##################################
+
+          - download: current
             artifact: backend-publish
-            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
 
-  # ---------------------------------------------------------------------
-  - stage: Frontend
-    displayName: "Frontend - React"
-    dependsOn: []
-    jobs:
-      - job: BuildFrontend
-        steps:
-          - task: NodeTool@0
-            displayName: "Installer Node.js"
-            inputs:
-              versionSpec: $(nodeVersion)
-
-          - script: npm ci
-            displayName: "npm ci"
-            workingDirectory: frontend
-
-          - script: npm run lint
-            displayName: "npm run lint"
-            workingDirectory: frontend
-
-          - script: npm run build
-            displayName: "npm run build"
-            workingDirectory: frontend
-
-          - publish: frontend/dist
+          - download: current
             artifact: frontend-dist
 
-  # ---------------------------------------------------------------------
-  # Déploiement (backlog : "Préparer le déploiement" - Epic Validation technique
-  # et déploiement). Ne se déclenche QUE sur main, ET seulement après un
-  # succès des deux stages précédents. Utilise un "environment" Azure DevOps
-  # (Pipelines > Environments > créer "production") sur lequel on configure
-  # un contrôle d'approbation manuelle : le déploiement reste en attente
-  # tant qu'un administrateur/l'encadrant n'a pas validé.
-  #
-  # Cette stage est un GABARIT : tant que azureSubscriptionServiceConnection /
-  # backendAppServiceName / frontendStaticWebAppName ne sont pas renseignés
-  # (voir "variables" ci-dessus), elle échouera intentionnellement plutôt
-  # que de déployer silencieusement n'importe où.
-  - stage: Deploy
-    displayName: "Déploiement (production)"
-    dependsOn:
-      - Backend
-      - Frontend
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-    jobs:
-      - deployment: DeployBackendAndFrontend
-        displayName: "Déployer backend + frontend"
-        environment: "production"
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: AzureWebApp@1
-                  displayName: "Deployer le backend sur Azure App Service"
-                  inputs:
-                    azureSubscription: "$(azureSubscriptionServiceConnection)"
-                    appName: "$(backendAppServiceName)"
-                    package: "$(Pipeline.Workspace)/backend-publish"
+          ##################################
+          # Déploiement Backend
+          ##################################
 
-                - task: AzureStaticWebApp@0
-                  displayName: "Deployer le frontend sur Azure Static Web Apps"
-                  inputs:
-                    app_location: "$(Pipeline.Workspace)/frontend-dist"
-                    skip_app_build: true
-                    azure_static_web_apps_api_token: "$(AZURE_STATIC_WEB_APPS_API_TOKEN)"
+          - task: AzureWebApp@1
+
+            displayName: "Déployer Backend"
+
+            inputs:
+
+              azureSubscription: $(azureSubscriptionServiceConnection)
+
+              appType: webAppLinux
+
+              appName: $(backendAppServiceName)
+
+              package: "$(Pipeline.Workspace)/backend-publish"
+
+          ##################################
+          # Déploiement Frontend
+          ##################################
+
+          - task: AzureStaticWebApp@0
+
+            displayName: "Déployer Frontend"
+
+            inputs:
+
+              app_location: "$(Pipeline.Workspace)/frontend-dist"
+
+              skip_app_build: true
+
+              azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
