@@ -34,29 +34,46 @@ public class FlowsController : ControllerBase
     {
         var validation = _validationService.Validate(request.JsonContent);
 
+        if (!validation.IsValid)
+        {
+            // Important : on ne tente pas d'enregistrer ce contenu en base.
+            // FlowImport.RawJson est une colonne PostgreSQL de type "jsonb" :
+            // si on essayait d'y insérer un contenu qui n'est pas du JSON valide
+            // (fichier non-JSON, texte quelconque...), PostgreSQL rejetterait
+            // l'insertion avec une erreur bas niveau, non interceptée, qui
+            // remontait comme une erreur 500 générique au lieu du vrai message
+            // métier. On renvoie donc directement l'erreur de validation, sans
+            // toucher à la base.
+            var rejected = new FlowImportResultDto(
+                Guid.Empty,
+                string.IsNullOrWhiteSpace(request.FileName) ? "Flux sans nom" : request.FileName,
+                false,
+                validation.Error,
+                0,
+                DateTime.UtcNow);
+            return UnprocessableEntity(rejected);
+        }
+
         var flowImport = new FlowImport
         {
             Name = string.IsNullOrWhiteSpace(request.FileName) ? "Flux sans nom" : request.FileName,
             RawJson = request.JsonContent,
-            IsValid = validation.IsValid,
-            ValidationError = validation.Error,
+            IsValid = true,
+            ValidationError = null,
             ImportedByUserId = User.GetUserId()
         };
 
-        if (validation.IsValid)
+        try
         {
-            try
-            {
-                var parsed = _parserService.Parse(request.JsonContent);
-                flowImport.ActionsCount = parsed.Actions.Count;
-                flowImport.Name = string.IsNullOrWhiteSpace(request.FileName) ? parsed.FlowName : request.FileName;
-            }
-            catch
-            {
-                // La validation basique a réussi mais le parsing détaillé a échoué :
-                // on conserve quand même l'import, il pourra être ré-analysé plus tard.
-                flowImport.ActionsCount = 0;
-            }
+            var parsed = _parserService.Parse(request.JsonContent);
+            flowImport.ActionsCount = parsed.Actions.Count;
+            flowImport.Name = string.IsNullOrWhiteSpace(request.FileName) ? parsed.FlowName : request.FileName;
+        }
+        catch
+        {
+            // La validation basique a réussi mais le parsing détaillé a échoué :
+            // on conserve quand même l'import, il pourra être ré-analysé plus tard.
+            flowImport.ActionsCount = 0;
         }
 
         _db.FlowImports.Add(flowImport);
@@ -66,9 +83,6 @@ public class FlowsController : ControllerBase
             flowImport.Id, flowImport.Name, flowImport.IsValid, flowImport.ValidationError,
             flowImport.ActionsCount, flowImport.ImportedAtUtc);
 
-        if (!validation.IsValid)
-            return UnprocessableEntity(result);
-
         return Ok(result);
     }
 
@@ -77,6 +91,9 @@ public class FlowsController : ControllerBase
     {
         var flow = await _db.FlowImports.FindAsync([id], ct);
         if (flow is null) return NotFound();
+
+        if (!User.CanModify(flow.ImportedByUserId))
+            return Forbid();
 
         return Ok(new FlowImportResultDto(flow.Id, flow.Name, flow.IsValid, flow.ValidationError, flow.ActionsCount, flow.ImportedAtUtc));
     }

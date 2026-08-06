@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileText, Workflow, PenLine, CheckCircle2, Archive } from "lucide-react";
+import { FileText, Workflow, PenLine, CheckCircle2, Archive, RefreshCw } from "lucide-react";
 import { getDashboardStats } from "../services/dashboardService";
 import PageHeader from "../components/ui/PageHeader";
 import StatusBadge from "../components/ui/StatusBadge";
 import EmptyState from "../components/ui/EmptyState";
 import Spinner from "../components/ui/Spinner";
 import Button from "../components/ui/Button";
+import { useAuth } from "../context/useAuth";
 
 const STAT_CARDS = [
   { key: "totalDocumentations", label: "Documentations générées", icon: FileText },
@@ -17,27 +18,48 @@ const STAT_CARDS = [
 ];
 
 export default function DashboardPage() {
+  const { isAdmin } = useAuth();
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    getDashboardStats()
+  const loadStats = useCallback((showSpinner) => {
+    if (showSpinner) setIsLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    return getDashboardStats()
       .then(setStats)
       .catch(() => setError("Impossible de charger les statistiques pour le moment."))
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      });
   }, []);
+
+  useEffect(() => {
+    loadStats(true);
+  }, [loadStats]);
 
   return (
     <div className="page-content">
       <PageHeader
         eyebrow="Vue d'ensemble"
         title="Tableau de bord"
-        description="Activité globale de la plateforme : flux importés, documentations générées et leur statut."
+        description={
+          isAdmin
+            ? "Activité globale de la plateforme : flux importés, documentations générées et leur statut."
+            : "Votre activité : vos flux importés, vos documentations générées et leur statut."
+        }
         actions={
-          <Link to="/importer">
-            <Button>Importer un flux</Button>
-          </Link>
+          <>
+            <Button variant="secondary" onClick={() => loadStats(false)} disabled={isRefreshing}>
+              <RefreshCw size={15} /> {isRefreshing ? "Actualisation…" : "Actualiser"}
+            </Button>
+            <Link to="/importer">
+              <Button>Importer un flux</Button>
+            </Link>
+          </>
         }
       />
 
@@ -110,7 +132,7 @@ export default function DashboardPage() {
                       <span style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {doc.title}
                       </span>
-                      <span style={{ fontSize: 12, color: "var(--color-muted)" }}>{doc.flowName}</span>
+                      <span style={{ fontSize: 12, color: "var(--color-muted)" }}>{doc.flowName} · {doc.createdByUserName}</span>
                     </div>
                     <div className="row" style={{ gap: 14, flexShrink: 0 }}>
                       <span style={{ fontSize: 12, color: "var(--color-muted)" }}>

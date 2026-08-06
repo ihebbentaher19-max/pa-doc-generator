@@ -1,106 +1,383 @@
-@import "@fontsource/sora/600.css";
-@import "@fontsource/sora/700.css";
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
+
+@import "@fontsource/sora/600.css";
+@import "@fontsource/sora/700.css";
+
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/500.css";
+
 @import "./tokens.css";
 
-* { box-sizing: border-box; }
+/* =======================================================
+   RESET
+======================================================= */
 
-html, body, #root {
-  height: 100%;
+*,
+*::before,
+*::after{
+    box-sizing:border-box;
 }
 
-body {
-  margin: 0;
-  background: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+html,
+body,
+#root{
+    height:100%;
 }
 
-h1, h2, h3, h4 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  margin: 0;
-  color: var(--color-ink);
+body{
+
+    margin:0;
+
+    background:
+    linear-gradient(
+        180deg,
+        #F9FBFD 0%,
+        #F4F6FA 100%
+    );
+
+    color:var(--color-ink);
+
+    font-family:var(--font-body);
+
+    font-size:14px;
+
+    line-height:1.5;
+
+    -webkit-font-smoothing:antialiased;
+
+    text-rendering:optimizeLegibility;
+
 }
 
-h1 { font-size: 28px; letter-spacing: -0.01em; }
-h2 { font-size: 20px; letter-spacing: -0.01em; }
-h3 { font-size: 16px; }
+/* =======================================================
+   TYPOGRAPHY
+======================================================= */
 
-p { margin: 0; }
+h1,
+h2,
+h3,
+h4{
 
-a { color: inherit; }
+    margin:0;
 
-button {
-  font-family: var(--font-body);
-  cursor: pointer;
+    color:var(--color-ink);
+
+    font-family:var(--font-display);
+
 }
 
-code, pre, .mono {
-  font-family: var(--font-mono);
+h1{
+
+    font-size:38px;
+
+    font-weight:700;
+
+    letter-spacing:-0.02em;
+
 }
 
-/* Focus visible - accessibilité clavier */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+h2{
+
+    font-size:26px;
+
+    font-weight:700;
+
 }
 
-::selection {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+h3{
+
+    font-size:18px;
+
+    font-weight:600;
+
 }
 
-.app-shell {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
-  min-height: 100vh;
+p{
+
+    margin:0;
+
 }
 
-@media (max-width: 860px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
+a{
+
+    text-decoration:none;
+
+    color:inherit;
+
 }
 
-.main-column {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+button{
+
+    font-family:inherit;
+
 }
 
-.page-content {
-  padding: var(--space-6) var(--space-7);
-  max-width: 1180px;
-  width: 100%;
-  margin: 0 auto;
+code,
+pre,
+.mono{
+
+    font-family:var(--font-mono);
+
 }
 
-@media (max-width: 640px) {
-  .page-content { padding: var(--space-4); }
+/* =======================================================
+   ACCESSIBILITE
+======================================================= */
+
+:focus-visible{
+
+    outline:2px solid var(--color-primary);
+
+    outline-offset:2px;
+
+    border-radius:6px;
+
 }
 
-.card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+::selection{
+
+    background:var(--color-primary-soft);
+
+    color:var(--color-primary);
+
 }
 
-.stack { display: flex; flex-direction: column; }
-.row { display: flex; align-items: center; }
+/* =======================================================
+   SCROLLBAR
+======================================================= */
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-  }
+::-webkit-scrollbar{
+
+    width:10px;
+
+}
+
+::-webkit-scrollbar-track{
+
+    background:#F5F5F5;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#C6D3DF;
+
+    border-radius:50px;
+
+}
+
+::-webkit-scrollbar-thumb:hover{
+
+    background:#9EB8D2;
+
+}
+
+/* =======================================================
+   LAYOUT
+======================================================= */
+
+.app-shell{
+
+    display:grid;
+
+    grid-template-columns:
+    var(--sidebar-width)
+    1fr;
+
+    min-height:100vh;
+
+}
+
+.main-column{
+
+    display:flex;
+
+    flex-direction:column;
+
+    min-width:0;
+
+}
+
+/* =======================================================
+   PAGE
+======================================================= */
+
+.page-content{
+
+    width:100%;
+
+    max-width:1400px;
+
+    margin:auto;
+
+    padding:
+
+        38px
+
+        46px;
+
+}
+
+/* =======================================================
+   CARD
+======================================================= */
+
+.card{
+
+    background:var(--color-surface);
+
+    border:1px solid var(--color-border);
+
+    border-radius:var(--radius-lg);
+
+    box-shadow:var(--shadow-sm);
+
+    transition:
+
+        transform .20s ease,
+
+        box-shadow .20s ease,
+
+        border-color .20s ease;
+
+}
+
+.card:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:var(--shadow-md);
+
+    border-color:#D6E8F8;
+
+}
+
+/* =======================================================
+   UTILITIES
+======================================================= */
+
+.stack{
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.row{
+
+    display:flex;
+
+    align-items:center;
+
+}
+
+/* =======================================================
+   TABLEAUX
+======================================================= */
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+td,
+th{
+
+    padding:14px 16px;
+
+    border-bottom:1px solid var(--color-border);
+
+}
+
+/* =======================================================
+   ANIMATIONS
+======================================================= */
+
+*{
+
+    transition:
+
+        background-color .20s,
+
+        color .20s,
+
+        border-color .20s;
+
+}
+
+/* =======================================================
+   RESPONSIVE
+======================================================= */
+
+@media(max-width:1000px){
+
+.app-shell{
+
+grid-template-columns:1fr;
+
+}
+
+.page-content{
+
+padding:24px;
+
+}
+
+}
+
+@media(max-width:640px){
+
+.page-content{
+
+padding:16px;
+
+}
+
+h1{
+
+font-size:30px;
+
+}
+
+h2{
+
+font-size:22px;
+
+}
+
+}
+
+/* =======================================================
+   REDUCED MOTION
+======================================================= */
+
+@media(prefers-reduced-motion:reduce){
+
+*,
+*::before,
+*::after{
+
+animation-duration:.001ms!important;
+
+transition-duration:.001ms!important;
+
+}
+}
+
+@keyframes spin {
+
+from{
+transform:rotate(0deg);
+}
+
+to{
+transform:rotate(360deg);
+}
+
 }

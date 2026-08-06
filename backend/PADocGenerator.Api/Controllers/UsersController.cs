@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Data;
 using PADocGenerator.Api.Models.Entities;
 
@@ -41,6 +42,9 @@ public class UsersController : ControllerBase
     [HttpPatch("{id:guid}/role")]
     public async Task<IActionResult> ChangeRole(Guid id, ChangeUserRoleDto dto, CancellationToken ct)
     {
+        if (id == User.GetUserId())
+            return BadRequest(new { message = "Vous ne pouvez pas modifier votre propre rôle." });
+
         if (!Enum.TryParse<UserRole>(dto.NewRole, ignoreCase: true, out var role))
             return BadRequest(new { message = "Rôle invalide. Valeurs autorisées : Utilisateur, Administrateur." });
 
@@ -55,6 +59,9 @@ public class UsersController : ControllerBase
     [HttpPatch("{id:guid}/active")]
     public async Task<IActionResult> SetActive(Guid id, SetUserActiveDto dto, CancellationToken ct)
     {
+        if (!dto.IsActive && id == User.GetUserId())
+            return BadRequest(new { message = "Vous ne pouvez pas désactiver votre propre compte." });
+
         var user = await _db.Users.FindAsync([id], ct);
         if (user is null) return NotFound();
 

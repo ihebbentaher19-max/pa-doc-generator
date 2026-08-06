@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Models.Dtos;
 using PADocGenerator.Api.Services.Interfaces;
 
@@ -25,7 +26,7 @@ public class AuthController : ControllerBase
             var result = await _authService.RegisterAsync(request, ct);
             return Ok(result);
         }
-        catch (InvalidOperationException ex)
+        catch (BusinessException ex)
         {
             return Conflict(new { message = ex.Message });
         }
@@ -36,7 +37,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(request, ct);
         if (result is null)
-            return Unauthorized(new { message = "E-mail ou mot de passe incorrect." });
+            return Unauthorized(new { message = UserMessages.InvalidCredentials });
 
         return Ok(result);
     }

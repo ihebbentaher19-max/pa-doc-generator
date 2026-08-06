@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PADocGenerator.Api.Common;
 using PADocGenerator.Api.Services.Interfaces;
 
 namespace PADocGenerator.Api.Services;
@@ -14,21 +15,25 @@ public class FlowValidationService : IFlowValidationService
     public FlowValidationResult Validate(string jsonContent)
     {
         if (string.IsNullOrWhiteSpace(jsonContent))
-            return new FlowValidationResult(false, "Le fichier est vide.");
+            return new FlowValidationResult(false, UserMessages.EmptyFlowFile);
 
         JsonDocument document;
         try
         {
             document = JsonDocument.Parse(jsonContent);
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
-            return new FlowValidationResult(false, $"JSON invalide : {ex.Message}");
+            return new FlowValidationResult(false, UserMessages.InvalidJsonFile);
         }
 
         using (document)
         {
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return new FlowValidationResult(false, UserMessages.InvalidFlowFormat);
+            }
 
             // Un export Power Automate peut être encapsulé sous "properties.definition"
             // (export depuis le portail) ou directement sous "definition".
@@ -43,14 +48,18 @@ public class FlowValidationService : IFlowValidationService
                 definition = directDefinition;
             }
 
+            if (definition.ValueKind != JsonValueKind.Object)
+            {
+                return new FlowValidationResult(false, UserMessages.InvalidFlowFormat);
+            }
+
             var hasActions = definition.TryGetProperty("actions", out _);
             var hasTriggers = definition.TryGetProperty("triggers", out _);
 
             if (!hasActions && !hasTriggers)
             {
                 return new FlowValidationResult(false,
-                    "Le fichier ne correspond pas au format attendu d'un flux Power Automate " +
-                    "(propriétés 'actions' / 'triggers' introuvables).");
+                    UserMessages.InvalidFlowFormat);
             }
 
             return new FlowValidationResult(true, null);

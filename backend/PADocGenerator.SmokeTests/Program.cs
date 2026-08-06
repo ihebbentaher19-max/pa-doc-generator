@@ -220,6 +220,27 @@ Check("Etapes importantes deduplicees et nettoyees (4 entrees -> 2 valides)",
     formatted.ImportantSteps.Count == 2, $"obtenu: {formatted.ImportantSteps.Count} -> [{string.Join(", ", formatted.ImportantSteps)}]");
 
 // ---------------------------------------------------------------------
+// 4. PasswordHasher (module de gestion des roles - authentification)
+// ---------------------------------------------------------------------
+Console.WriteLine();
+Console.WriteLine("== PasswordHasher ==");
+
+var hash1 = PasswordHasher.Hash("MotDePasse#2026");
+Check("Le hash contient un separateur salt.hash", hash1.Contains('.'));
+Check("Le mot de passe correct est verifie avec succes", PasswordHasher.Verify("MotDePasse#2026", hash1));
+Check("Un mot de passe incorrect est rejete", !PasswordHasher.Verify("MauvaisMotDePasse", hash1));
+Check("Une chaine vide est rejetee", !PasswordHasher.Verify("", hash1));
+
+var hash2 = PasswordHasher.Hash("MotDePasse#2026");
+Check("Deux hachages du meme mot de passe sont differents (sel aleatoire)", hash1 != hash2);
+Check("Le deuxieme hash reste verifiable avec le bon mot de passe", PasswordHasher.Verify("MotDePasse#2026", hash2));
+
+Check("Un hash malformé (pas de separateur) est rejete sans exception",
+    !PasswordHasher.Verify("peu importe", "hash-sans-separateur"));
+Check("Un hash avec base64 invalide est rejete sans exception",
+    !PasswordHasher.Verify("peu importe", "!!!invalide!!!.!!!invalide!!!"));
+
+// ---------------------------------------------------------------------
 Console.WriteLine();
 Console.WriteLine($"===== RESULTATS : {passed} reussis / {failed} echoues (total {passed + failed}) =====");
 

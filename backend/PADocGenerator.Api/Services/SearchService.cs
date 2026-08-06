@@ -21,14 +21,20 @@ public class SearchService : ISearchService
     }
 
     public async Task<(List<DocumentationSummaryDto> Items, int TotalCount)> SearchAsync(
-        SearchDocumentationQueryDto query, CancellationToken ct = default)
+        SearchDocumentationQueryDto query, Guid currentUserId, bool isAdmin, CancellationToken ct = default)
     {
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
 
         var queryable = _db.Documentations
             .Include(d => d.FlowImport)
+            .Include(d => d.CreatedByUser)
             .AsQueryable();
+
+        if (!isAdmin)
+        {
+            queryable = queryable.Where(d => d.CreatedByUserId == currentUserId);
+        }
 
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
@@ -56,6 +62,7 @@ public class SearchService : ISearchService
                 d.FlowImport != null ? d.FlowImport.Name : "Flux inconnu",
                 d.Status.ToString(),
                 d.CurrentVersionNumber,
+                d.CreatedByUser != null ? d.CreatedByUser.FullName : "Inconnu",
                 d.UpdatedAtUtc))
             .ToListAsync(ct);
 

@@ -31,6 +31,7 @@ public record DocumentationSummaryDto(
     string FlowName,
     string Status,
     int CurrentVersionNumber,
+    string CreatedByUserName,
     DateTime UpdatedAtUtc
 );
 
@@ -38,9 +39,12 @@ public record DocumentationDetailDto(
     Guid Id,
     string Title,
     string FlowName,
+    Guid FlowImportId,
     string Status,
     int CurrentVersionNumber,
     DocumentationContentDto Content,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc
 );
@@ -58,7 +62,8 @@ public record DocumentationVersionSummaryDto(
     bool IsManuallyEdited,
     string EditedByFullName,
     DateTime CreatedAtUtc,
-    string? ChangeNote
+    string? ChangeNote,
+    DocumentationContentDto Content
 );
 
 public record SearchDocumentationQueryDto(

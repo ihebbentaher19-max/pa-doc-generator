@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Download, History, Star, Plus, Trash2, Save } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Download, History, Star, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import StatusBadge from "../components/ui/StatusBadge";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
 import Spinner from "../components/ui/Spinner";
+import { useAuth } from "../context/useAuth";
 import {
   getDocumentation,
   updateDocumentation,
   changeDocumentationStatus,
   getVersionHistory,
   downloadExport,
+  regenerateDocumentation,
+  deleteDocumentation,
 } from "../services/documentationService";
 import { getApiErrorMessage } from "../services/api";
 import { inputStyle } from "../styles/formStyles";
@@ -20,6 +23,8 @@ const STATUS_OPTIONS = ["Brouillon", "Valide", "Archive"];
 
 export default function DocumentationDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAdmin, user } = useAuth();
 
   const [doc, setDoc] = useState(null);
   const [content, setContent] = useState(null);
@@ -30,9 +35,12 @@ export default function DocumentationDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
   const [isExporting, setIsExporting] = useState(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState([]);
+  const [expandedVersion, setExpandedVersion] = useState(null);
 
   function loadDocument() {
     setIsLoading(true);
@@ -49,6 +57,7 @@ export default function DocumentationDetailPage() {
   useEffect(loadDocument, [id]);
 
   async function handleSave() {
+    if (!hasUnsavedChanges) return;
     setIsSaving(true);
     setSaveMessage(null);
     try {
@@ -83,10 +92,48 @@ export default function DocumentationDetailPage() {
     }
   }
 
+  /** Relance la génération IA sur le flux d'origine (backlog : "Permettre la régénération"). */
+  async function handleRegenerate() {
+    if (!window.confirm("Relancer la génération IA ? Le contenu actuel sera remplacé par une nouvelle version.")) {
+      return;
+    }
+    setIsRegenerating(true);
+    setSaveMessage(null);
+    try {
+      const updated = await regenerateDocumentation(id);
+      setDoc(updated);
+      setContent(updated.content);
+      setTitle(updated.title);
+      setSaveMessage({ tone: "success", text: `Régénéré par l'IA — nouvelle version v${updated.currentVersionNumber}.` });
+    } catch (err) {
+      setSaveMessage({ tone: "error", text: getApiErrorMessage(err, "La régénération a échoué.") });
+    } finally {
+      setIsRegenerating(false);
+    }
+  }
+
+  /** Suppression définitive - réservée aux administrateurs côté backend ET masquée côté
+   * interface pour les autres profils (backlog : "Masquer les actions interdites côté interface"). */
+  async function handleDelete() {
+    if (!window.confirm("Supprimer définitivement cette documentation ? Cette action est irréversible.")) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteDocumentation(id);
+      navigate("/documentations");
+    } catch (err) {
+      setSaveMessage({ tone: "error", text: getApiErrorMessage(err, "La suppression a échoué.") });
+      setIsDeleting(false);
+    }
+  }
+
   async function toggleHistory() {
     if (!showHistory) {
       const data = await getVersionHistory(id);
       setVersions(data);
+    } else {
+      setExpandedVersion(null);
     }
     setShowHistory((v) => !v);
   }
@@ -125,14 +172,35 @@ export default function DocumentationDetailPage() {
     );
   }
 
+  // Section 6 (gestion des rôles) : un utilisateur ne peut modifier, changer le
+  // statut, régénérer ou exporter que ses propres documentations ; un
+  // administrateur peut agir sur toutes les documentations.
+  const canModify = isAdmin || doc.createdByUserId === user?.id;
+
+  // Section 4 : n'autoriser l'enregistrement que s'il y a une modification
+  // réelle par rapport à la version actuellement chargée, pour éviter de
+  // créer des versions vides dans l'historique.
+  const hasUnsavedChanges =
+    title !== doc.title || JSON.stringify(content) !== JSON.stringify(doc.content);
+
   return (
     <div className="page-content">
+      {!canModify && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Callout tone="info">
+            Cette documentation a été créée par {doc.createdByUserName} : vous pouvez la consulter, mais seul son
+            auteur ou un administrateur peut la modifier, changer son statut, la régénérer ou l'exporter.
+          </Callout>
+        </div>
+      )}
+
       <PageHeader
         eyebrow={doc.flowName}
         title={
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            disabled={!canModify}
             style={{ ...inputStyle, fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 24, width: "100%", border: "none", padding: "2px 0" }}
           />
         }
@@ -141,6 +209,7 @@ export default function DocumentationDetailPage() {
             <select
               value={doc.status}
               onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={!canModify}
               style={{ ...inputStyle, fontWeight: 600 }}
             >
               {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -148,15 +217,23 @@ export default function DocumentationDetailPage() {
             <Button variant="secondary" onClick={toggleHistory}>
               <History size={15} /> Historique
             </Button>
-            <Button variant="secondary" onClick={() => handleExport("pdf")} disabled={isExporting === "pdf"}>
+            <Button variant="secondary" onClick={handleRegenerate} disabled={isRegenerating || !canModify}>
+              <RefreshCw size={15} /> {isRegenerating ? "Régénération…" : "Régénérer via IA"}
+            </Button>
+            <Button variant="secondary" onClick={() => handleExport("pdf")} disabled={isExporting === "pdf" || !canModify}>
               <Download size={15} /> {isExporting === "pdf" ? "Export…" : "PDF"}
             </Button>
-            <Button variant="secondary" onClick={() => handleExport("word")} disabled={isExporting === "word"}>
+            <Button variant="secondary" onClick={() => handleExport("word")} disabled={isExporting === "word" || !canModify}>
               <Download size={15} /> {isExporting === "word" ? "Export…" : "Word"}
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              <Save size={15} /> {isSaving ? "Enregistrement…" : "Enregistrer"}
+            <Button onClick={handleSave} disabled={isSaving || !canModify || !hasUnsavedChanges}>
+              <Save size={15} /> {isSaving ? "Enregistrement…" : hasUnsavedChanges ? "Enregistrer" : "Aucune modification"}
             </Button>
+            {isAdmin && (
+              <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+                <Trash2 size={15} /> {isDeleting ? "Suppression…" : "Supprimer"}
+              </Button>
+            )}
           </>
         }
       />
@@ -164,7 +241,7 @@ export default function DocumentationDetailPage() {
       <div className="row" style={{ gap: 10, marginBottom: "var(--space-5)" }}>
         <StatusBadge status={doc.status} />
         <span style={{ fontSize: 12.5, color: "var(--color-muted)" }}>
-          Version v{doc.currentVersionNumber} · mis à jour le {new Date(doc.updatedAtUtc).toLocaleString("fr-FR")}
+          Version v{doc.currentVersionNumber} · créée par {doc.createdByUserName} · mise à jour le {new Date(doc.updatedAtUtc).toLocaleString("fr-FR")}
         </span>
       </div>
 
@@ -178,15 +255,69 @@ export default function DocumentationDetailPage() {
         <div className="card" style={{ padding: "var(--space-4)", marginBottom: "var(--space-5)" }}>
           <h3 style={{ marginBottom: 10 }}>Historique des versions</h3>
           <div className="stack" style={{ gap: 8 }}>
-            {versions.map((v) => (
-              <div key={v.versionNumber} className="row" style={{ justifyContent: "space-between", fontSize: 13 }}>
-                <span>
-                  <strong>v{v.versionNumber}</strong> — {v.isManuallyEdited ? "modification manuelle" : "génération IA"} par {v.editedByFullName}
-                  {v.changeNote ? ` — ${v.changeNote}` : ""}
-                </span>
-                <span style={{ color: "var(--color-muted)" }}>{new Date(v.createdAtUtc).toLocaleString("fr-FR")}</span>
-              </div>
-            ))}
+            {versions.map((v) => {
+              const isExpanded = expandedVersion === v.versionNumber;
+              return (
+                <div key={v.versionNumber} className="stack" style={{ gap: 0 }}>
+                  <button
+                    onClick={() => setExpandedVersion(isExpanded ? null : v.versionNumber)}
+                    className="row"
+                    style={{
+                      justifyContent: "space-between",
+                      fontSize: 13,
+                      width: "100%",
+                      border: "none",
+                      background: "transparent",
+                      padding: "6px 0",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span>
+                      {isExpanded ? "▾" : "▸"} <strong>v{v.versionNumber}</strong> — {v.isManuallyEdited ? "modification manuelle" : "génération IA"} par {v.editedByFullName}
+                      {v.changeNote ? ` — ${v.changeNote}` : ""}
+                    </span>
+                    <span style={{ color: "var(--color-muted)" }}>{new Date(v.createdAtUtc).toLocaleString("fr-FR")}</span>
+                  </button>
+
+                  {isExpanded && (
+                    <div
+                      className="stack"
+                      style={{ gap: 10, padding: "10px 12px", marginBottom: 6, background: "var(--color-surface-alt)", borderRadius: "var(--radius-sm)", fontSize: 13 }}
+                    >
+                      <div>
+                        <strong>Résumé fonctionnel :</strong>
+                        <p style={{ margin: "4px 0 0", color: "var(--color-muted)" }}>{v.content.functionalSummary}</p>
+                      </div>
+
+                      {v.content.steps.length > 0 && (
+                        <div>
+                          <strong>Étapes ({v.content.steps.length}) :</strong>
+                          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                            {v.content.steps.map((s, i) => (
+                              <li key={i}>
+                                {s.isImportant ? "★ " : ""}{s.stepName} — <span style={{ color: "var(--color-muted)" }}>{s.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {v.content.dependencies.length > 0 && (
+                        <div>
+                          <strong>Dépendances ({v.content.dependencies.length}) :</strong>
+                          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                            {v.content.dependencies.map((d, i) => (
+                              <li key={i}>{d.from} → {d.to} : <span style={{ color: "var(--color-muted)" }}>{d.explanationText}</span></li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -198,6 +329,7 @@ export default function DocumentationDetailPage() {
           value={content.functionalSummary}
           onChange={(e) => setContent((c) => ({ ...c, functionalSummary: e.target.value }))}
           rows={4}
+          disabled={!canModify}
           style={{ ...inputStyle, width: "100%", resize: "vertical", fontFamily: "var(--font-body)" }}
         />
       </section>
@@ -206,7 +338,7 @@ export default function DocumentationDetailPage() {
       <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }}>
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
           <h2>Étapes du flux</h2>
-          <Button variant="ghost" onClick={addStep}><Plus size={15} /> Ajouter une étape</Button>
+          <Button variant="ghost" onClick={addStep} disabled={!canModify}><Plus size={15} /> Ajouter une étape</Button>
         </div>
         <div className="stack" style={{ gap: 10 }}>
           {content.steps.map((step, index) => (
@@ -215,10 +347,12 @@ export default function DocumentationDetailPage() {
                 <input
                   value={step.stepName}
                   onChange={(e) => updateStep(index, "stepName", e.target.value)}
+                  disabled={!canModify}
                   style={{ ...inputStyle, flex: 1, fontWeight: 600 }}
                 />
                 <button
                   onClick={() => updateStep(index, "isImportant", !step.isImportant)}
+                  disabled={!canModify}
                   title="Marquer comme étape importante"
                   style={{
                     border: "1px solid var(--color-border)",
@@ -229,7 +363,11 @@ export default function DocumentationDetailPage() {
                 >
                   <Star size={15} fill={step.isImportant ? "var(--color-accent)" : "none"} color="var(--color-accent)" />
                 </button>
-                <button onClick={() => removeStep(index)} style={{ border: "none", background: "transparent", color: "var(--color-danger)", padding: 8 }}>
+                <button
+                  onClick={() => removeStep(index)}
+                  disabled={!canModify}
+                  style={{ border: "none", background: "transparent", color: "var(--color-danger)", padding: 8 }}
+                >
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -237,6 +375,7 @@ export default function DocumentationDetailPage() {
                 value={step.description}
                 onChange={(e) => updateStep(index, "description", e.target.value)}
                 rows={2}
+                disabled={!canModify}
                 style={{ ...inputStyle, width: "100%", resize: "vertical" }}
               />
             </div>

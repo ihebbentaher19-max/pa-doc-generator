@@ -113,15 +113,33 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityRequirement(new OpenApiSecurityRequirement { { jwtSecurityScheme, Array.Empty<string>() } });
 });
 
+var configuredUrls = builder.Configuration["ASPNETCORE_URLS"];
+if (string.IsNullOrWhiteSpace(configuredUrls))
+{
+    var port = Environment.GetEnvironmentVariable("PORT");
+    if (!string.IsNullOrWhiteSpace(port))
+    {
+        builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+    }
+    else
+    {
+        builder.WebHost.UseUrls("http://localhost:5090");
+    }
+}
+else
+{
+    builder.WebHost.UseUrls(configuredUrls);
+}
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Générateur de documentation IA pour Power Automate - API");
+});
 
 app.UseHttpsRedirection();
 app.UseCors(FrontendCorsPolicy);

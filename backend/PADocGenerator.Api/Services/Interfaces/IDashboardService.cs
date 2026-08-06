@@ -8,5 +8,11 @@ namespace PADocGenerator.Api.Services.Interfaces;
 /// </summary>
 public interface IDashboardService
 {
-    Task<DashboardStatsDto> GetStatsAsync(CancellationToken ct = default);
+    /// <summary>
+    /// Un Administrateur (<paramref name="isAdmin"/> = true) voit les
+    /// statistiques globales de la plateforme ; un Utilisateur ne voit que
+    /// ses propres flux importés et documentations générées (section 6 du
+    /// cahier des charges : rôle Administrateur vs Utilisateur).
+    /// </summary>
+    Task<DashboardStatsDto> GetStatsAsync(Guid currentUserId, bool isAdmin, CancellationToken ct = default);
 }

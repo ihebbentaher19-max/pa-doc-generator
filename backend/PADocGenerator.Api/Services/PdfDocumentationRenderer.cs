@@ -24,7 +24,12 @@ public class PdfDocumentationRenderer
             {
                 page.Size(PageSizes.A4);
                 page.Margin(2, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontSize(11));
+                // Police fixée explicitement (Arial) : la police système par défaut
+                // (souvent Calibri sur Windows) fusionne "ti" en une ligature dont le
+                // mappage Unicode est mal généré par QuestPDF/SkiaSharp - le PDF a l'air
+                // correct à l'écran mais perd ces lettres à l'extraction/copie du texte
+                // ("documentation" devient "documentaon"). Arial n'a pas ce problème.
+                page.DefaultTextStyle(x => x.FontSize(11).FontFamily(Fonts.Arial));
 
                 page.Header().Column(col =>
                 {
@@ -63,7 +68,13 @@ public class PdfDocumentationRenderer
 
                             foreach (var step in documentation.Content.Steps)
                             {
-                                table.Cell().Element(BodyCell).Text(step.StepName).Bold(step.IsImportant);
+                                var stepCell = table.Cell().Element(BodyCell);
+                                var stepText = stepCell.Text(step.StepName);
+                                if (step.IsImportant)
+                                {
+                                    stepText.Bold();
+                                }
+
                                 table.Cell().Element(BodyCell).Text(step.Description);
                                 table.Cell().Element(BodyCell).Text(step.IsImportant ? "★" : "");
                             }
