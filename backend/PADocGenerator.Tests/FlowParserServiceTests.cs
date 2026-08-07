@@ -60,7 +60,7 @@ public class FlowParserServiceTests
     {
         var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
 
-        var sendEmail = parsed.Actions.First(a => a.Name == "Send_an_email");
+        var sendEmail = parsed.Actions.First(a => a.Name == "Send an email");
         sendEmail.RunsAfter.Should().BeNull();
     }
 
