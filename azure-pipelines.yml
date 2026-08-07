@@ -107,71 +107,46 @@ stages:
 # =====================================================================
 
 - stage: Deploy
-
-  displayName: "Déploiement"
-
+  displayName: "Déploiement (production)"
   dependsOn:
-    - Backend
-    - Frontend
-
-  condition: succeeded()
-
+  - Backend
+  - Frontend
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
-
-  - deployment: Production
-
-    displayName: "Déploiement Production"
-
-    environment: production
-
+  - deployment: DeployBackendAndFrontend
+    displayName: "Déployer backend + frontend"
+    environment:
+      name: "production"
     strategy:
-
       runOnce:
-
         deploy:
-
           steps:
-
-          ##################################
-          # Télécharger les artifacts
-          ##################################
-
-          - download: current
-            artifact: backend-publish
-
-          - download: current
-            artifact: frontend-dist
-
-          ##################################
-          # Déploiement Backend
-          ##################################
-
-          - task: AzureWebApp@1
-
-            displayName: "Déployer Backend"
-
+          # 1. Télécharger l'artefact Backend
+          - task: DownloadPipelineArtifact@2
+            displayName: "Télécharger l'artefact Backend"
             inputs:
+              artifact: 'backend-publish'
+              path: '$(Pipeline.Workspace)/backend-publish'
 
-              azureSubscription: $(azureSubscriptionServiceConnection)
-
-              appType: webAppLinux
-
-              appName: $(backendAppServiceName)
-
+          # 2. Déployer Backend sur Azure App Service
+          - task: AzureWebApp@1
+            displayName: "Deployer le backend sur Azure App Service"
+            inputs:
+              azureSubscription: "$(azureSubscriptionServiceConnection)"
+              appName: "$(backendAppServiceName)"
               package: "$(Pipeline.Workspace)/backend-publish"
 
-          ##################################
-          # Déploiement Frontend
-          ##################################
-
-          - task: AzureStaticWebApp@0
-
-            displayName: "Déployer Frontend"
-
+          # 3. Télécharger l'artefact Frontend
+          - task: DownloadPipelineArtifact@2
+            displayName: "Télécharger l'artefact Frontend"
             inputs:
+              artifact: 'frontend-dist'
+              path: '$(Pipeline.Workspace)/frontend-dist'
 
+          # 4. Déployer Frontend sur Azure Static Web Apps
+          - task: AzureStaticWebApp@0
+            displayName: "Deployer le frontend sur Azure Static Web Apps"
+            inputs:
               app_location: "$(Pipeline.Workspace)/frontend-dist"
-
               skip_app_build: true
-
-              azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
+              azure_static_web_apps_api_token: "$(AZURE_STATIC_WEB_APPS_API_TOKEN)"
