@@ -13,6 +13,17 @@ namespace PADocGenerator.Api.Services;
 /// </summary>
 public class FlowParserService : IFlowParserService
 {
+    /// <summary>
+    /// Les clés d'actions/déclencheurs Power Automate ne peuvent pas contenir
+    /// d'espaces (contrainte du format JSON exporté) : Power Automate remplace
+    /// automatiquement les espaces par des underscores lors de la création du
+    /// flux (ex. "Vérifier la priorité" devient "Verifier_la_priorite"). On
+    /// reconvertit ces underscores en espaces dès l'extraction, pour que ni le
+    /// prompt envoyé à l'IA, ni l'interface, ni les exports PDF/Word n'affichent
+    /// de noms techniques illisibles.
+    /// </summary>
+    private static string Humanize(string rawName) => rawName.Replace('_', ' ').Trim();
+
     public ParsedFlow Parse(string jsonContent)
     {
         using var document = JsonDocument.Parse(jsonContent);
@@ -38,7 +49,7 @@ public class FlowParserService : IFlowParserService
         {
             foreach (var trigger in triggers.EnumerateObject())
             {
-                parsedFlow.Trigger = trigger.Name;
+                parsedFlow.Trigger = Humanize(trigger.Name);
                 break; // un flux Power Automate n'a en général qu'un déclencheur
             }
         }
@@ -72,7 +83,7 @@ public class FlowParserService : IFlowParserService
     {
         foreach (var actionProperty in actions.EnumerateObject())
         {
-            var actionName = actionProperty.Name;
+            var actionName = Humanize(actionProperty.Name);
             var actionBody = actionProperty.Value;
 
             var actionType = actionBody.TryGetProperty("type", out var typeEl)
@@ -84,7 +95,7 @@ public class FlowParserService : IFlowParserService
             {
                 foreach (var dep in runAfterEl.EnumerateObject())
                 {
-                    runsAfter = dep.Name; // première dépendance déclarée
+                    runsAfter = Humanize(dep.Name); // première dépendance déclarée
                     break;
                 }
             }
@@ -102,14 +113,14 @@ public class FlowParserService : IFlowParserService
 
                 if (actionBody.TryGetProperty("actions", out var trueActions))
                 {
-                    condition.ActionsIfTrue = trueActions.EnumerateObject().Select(a => a.Name).ToList();
+                    condition.ActionsIfTrue = trueActions.EnumerateObject().Select(a => Humanize(a.Name)).ToList();
                     ParseActionsRecursively(trueActions, flow, actionName);
                 }
 
                 if (actionBody.TryGetProperty("else", out var elseBranch) &&
                     elseBranch.TryGetProperty("actions", out var falseActions))
                 {
-                    condition.ActionsIfFalse = falseActions.EnumerateObject().Select(a => a.Name).ToList();
+                    condition.ActionsIfFalse = falseActions.EnumerateObject().Select(a => Humanize(a.Name)).ToList();
                     ParseActionsRecursively(falseActions, flow, actionName);
                 }
 
