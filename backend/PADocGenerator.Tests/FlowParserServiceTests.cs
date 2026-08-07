@@ -23,7 +23,7 @@ public class FlowParserServiceTests
         var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
 
         parsed.Actions.Select(a => a.Name).Should()
-            .BeEquivalentTo("Send_an_email", "Approve_request", "Reject_request");
+            .BeEquivalentTo("Send an email", "Approve request", "Reject request");
     }
 
     [Fact]
@@ -32,8 +32,8 @@ public class FlowParserServiceTests
         var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
 
         parsed.Conditions.Should().HaveCount(1);
-        parsed.Conditions[0].ActionsIfTrue.Should().Contain("Approve_request");
-        parsed.Conditions[0].ActionsIfFalse.Should().Contain("Reject_request");
+        parsed.Conditions[0].ActionsIfTrue.Should().Contain("Approve request");
+        parsed.Conditions[0].ActionsIfFalse.Should().Contain("Reject request");
     }
 
     [Fact]
