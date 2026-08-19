@@ -1,8 +1,8 @@
-import { createContext, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+
 import { getStoredToken, getStoredUser } from "../services/api";
 import * as authService from "../services/authService";
-
-export const AuthContext = createContext(null);
+import AuthContext from "./authContextValue";
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getStoredToken());

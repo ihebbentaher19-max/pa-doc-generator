@@ -3,21 +3,16 @@ import { useMemo } from "react";
 export default function DocumentationDiagram({ diagram }) {
   const { nodes, edges } = diagram || {};
 
-  if (!nodes?.length) {
-    return (
-      <div style={{ color: "var(--color-muted)", fontSize: 13 }}>
-        Aucun diagramme disponible pour cette documentation.
-      </div>
-    );
-  }
-
   const layout = useMemo(() => {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
     const safeEdges = Array.isArray(edges) ? edges : [];
 
-    const nodesById = new Map(nodes.map((node) => [node.id, node]));
+    const nodesById = new Map(
+      safeNodes.map((node) => [node.id, node])
+    );
 
     // Nombre d'entrées de chaque nœud.
-    const incomingCount = new Map(nodes.map((node) => [node.id, 0]));
+    const incomingCount = new Map(safeNodes.map((node) => [node.id, 0]));
 
     safeEdges.forEach((edge) => {
       if (incomingCount.has(edge.targetId)) {
@@ -29,7 +24,7 @@ export default function DocumentationDiagram({ diagram }) {
     });
 
     // Nœuds de départ : aucun lien entrant.
-    const roots = nodes.filter(
+    const roots = safeNodes.filter(
       (node) => incomingCount.get(node.id) === 0
     );
 
@@ -44,9 +39,9 @@ export default function DocumentationDiagram({ diagram }) {
 
     // Si aucun nœud de départ n'est détecté, on commence
     // avec le premier nœud.
-    if (queue.length === 0 && nodes.length > 0) {
-      assignedLevels.set(nodes[0].id, 0);
-      queue.push(nodes[0].id);
+    if (queue.length === 0 && safeNodes.length > 0) {
+      assignedLevels.set(safeNodes[0].id, 0);
+      queue.push(safeNodes[0].id);
     }
 
     // Détermine le niveau de chaque nœud selon ses relations.
@@ -73,7 +68,7 @@ export default function DocumentationDiagram({ diagram }) {
     }
 
     // Les éventuels nœuds non reliés sont placés à la fin.
-    nodes.forEach((node) => {
+    safeNodes.forEach((node) => {
       if (!assignedLevels.has(node.id)) {
         assignedLevels.set(node.id, assignedLevels.size > 0 ? Math.max(...assignedLevels.values()) + 1 : 0);
       }
@@ -140,6 +135,14 @@ export default function DocumentationDiagram({ diagram }) {
       nodeHeight,
     };
   }, [nodes, edges]);
+
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return (
+      <div style={{ color: "var(--color-muted)", fontSize: 13 }}>
+        Aucun diagramme disponible pour cette documentation.
+      </div>
+    );
+  }
 
   const getNodeTypeLabel = (node) =>
     node.type || node.nodeType || "Non défini";
