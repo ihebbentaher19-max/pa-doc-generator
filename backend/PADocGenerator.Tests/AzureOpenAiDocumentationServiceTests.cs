@@ -26,21 +26,98 @@ public class AzureOpenAiDocumentationServiceTests
         {
             FlowName = "Flux de validation",
             Trigger = "manual",
-            Actions =
+            Nodes =
             [
-                new ParsedAction { Name = "Envoyer un email", Type = "Office 365" },
-                new ParsedAction { Name = "Notifier le responsable", Type = "Teams" }
+                new ParsedFlowNode
+                {
+                    Id = "trigger",
+                    Name = "manual",
+                    Type = "Request",
+                    NodeType = "Trigger",
+                    Inputs = new Dictionary<string, string>(),
+                    UsedVariables = new List<string>()
+                },
+                new ParsedFlowNode
+                {
+                    Id = "send-email",
+                    Name = "Envoyer un email",
+                    Type = "SendEmail",
+                    NodeType = "Action",
+                    ConnectorReference = "Office 365",
+                    Inputs = new Dictionary<string, string>(),
+                    UsedVariables = new List<string>()
+                },
+                new ParsedFlowNode
+                {
+                    Id = "notify-manager",
+                    Name = "Notifier le responsable",
+                    Type = "PostMessage",
+                    NodeType = "Action",
+                    ConnectorReference = "Teams",
+                    Inputs = new Dictionary<string, string>(),
+                    UsedVariables = new List<string>()
+                },
+                new ParsedFlowNode
+                {
+                    Id = "validation",
+                    Name = "Validation",
+                    Type = "If",
+                    NodeType = "Condition",
+                    Inputs = new Dictionary<string, string>
+                    {
+                        ["expression"] = "status = approved"
+                    },
+                    UsedVariables = new List<string>()
+                }
             ],
-            Conditions =
+            Edges =
             [
-                new ParsedCondition { Name = "Validation", Expression = "status = approved", ActionsIfTrue = ["Notifier le responsable"], ActionsIfFalse = ["Rejeter la demande"] }
+                new ParsedFlowEdge
+                {
+                    SourceId = "trigger",
+                    TargetId = "send-email",
+                    Label = null
+                },
+                new ParsedFlowEdge
+                {
+                    SourceId = "send-email",
+                    TargetId = "validation",
+                    Label = null
+                },
+                new ParsedFlowEdge
+                {
+                    SourceId = "validation",
+                    TargetId = "notify-manager",
+                    Label = "Oui"
+                }
             ]
         };
 
         var result = await service.GenerateAsync(parsedFlow, CancellationToken.None);
 
         result.FunctionalSummary.Should().Contain("Flux de validation");
-        result.Steps.Should().HaveCount(2);
-        result.ImportantSteps.Should().Contain("Envoyer un email");
+
+        // Le fallback actuel documente tous les Nodes, y compris le Trigger.
+        result.Steps.Should().HaveCount(4);
+
+        result.Steps.Should().Contain(s =>
+            s.StepName == "Envoyer un email" &&
+            s.Connector == "Office 365");
+
+        result.Steps.Should().Contain(s =>
+            s.StepName == "Notifier le responsable" &&
+            s.Connector == "Teams");
+
+        result.Steps.Should().Contain(s =>
+            s.StepName == "Validation" &&
+            s.StepType == "If");
+
+        result.Dependencies.Should().Contain(d =>
+            d.From == "Validation" &&
+            d.To == "Notifier le responsable" &&
+            d.RelationshipType == "Oui");
+
+        result.Diagram.Nodes.Should().HaveCount(4);
+        result.Diagram.Edges.Should().HaveCount(3);
     }
 }

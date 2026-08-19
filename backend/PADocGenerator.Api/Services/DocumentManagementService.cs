@@ -138,9 +138,14 @@ public class DocumentManagementService : IDocumentManagementService
             .ThenInclude(d => d.FlowImport!)
             .FirstOrDefaultAsync(v => v.DocumentationId == documentationId && v.VersionNumber == versionNumber, ct)
             ?? throw new KeyNotFoundException(UserMessages.VersionNotFound);
-
+        
         var content = JsonSerializer.Deserialize<DocumentationContentDto>(version.StructuredContentJson, JsonOptions)
-            ?? new DocumentationContentDto(version.FunctionalSummary, new(), new(), new());
+            ?? new DocumentationContentDto(
+                version.FunctionalSummary,
+                new(),
+                new(),
+                new DocumentationDiagramDto(new(), new())
+            );
 
         return new DocumentationVersionDetailDto(
             documentationId,
@@ -194,7 +199,11 @@ public class DocumentManagementService : IDocumentManagementService
             v.CreatedAtUtc,
             v.ChangeNote,
             JsonSerializer.Deserialize<DocumentationContentDto>(v.StructuredContentJson, JsonOptions)
-                ?? new DocumentationContentDto(v.FunctionalSummary, new(), new(), new())
+                ?? new DocumentationContentDto(
+                    v.FunctionalSummary,
+                    new(),
+                    new(),
+                    new DocumentationDiagramDto(new(), new()))
         )).ToList();
     }
 
@@ -214,8 +223,13 @@ public class DocumentManagementService : IDocumentManagementService
         Documentation documentation, string flowName, DocumentationVersion version, string createdByUserName)
     {
         var content = JsonSerializer.Deserialize<DocumentationContentDto>(version.StructuredContentJson, JsonOptions)
-            ?? new DocumentationContentDto(version.FunctionalSummary, new(), new(), new());
-
+            ?? new DocumentationContentDto(
+                version.FunctionalSummary,
+                new(),
+                new(),
+                new DocumentationDiagramDto(new(), new())
+            );
+            
         return new DocumentationDetailDto(
             documentation.Id,
             documentation.Title,

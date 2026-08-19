@@ -17,12 +17,12 @@ public class DocumentFormattingService : IDocumentFormattingService
     {
         var cleanedSummary = rawContent.FunctionalSummary.Trim();
 
-        // Les étapes marquées "importantes" par l'IA sont affichées en premier
-        // afin de mettre en évidence les points clés du flux, comme demandé
-        // en section 4 : "Identification ... des étapes importantes du flux."
         var orderedSteps = rawContent.Steps
-            .Select(s => s with { StepName = s.StepName.Trim(), Description = s.Description.Trim() })
-            .OrderByDescending(s => s.IsImportant)
+            .Select(s => s with
+            {
+                StepName = s.StepName.Trim(),
+                Description = s.Description.Trim()
+            })
             .ToList();
 
         var dedupedDependencies = rawContent.Dependencies
@@ -30,12 +30,6 @@ public class DocumentFormattingService : IDocumentFormattingService
             .Select(g => g.First())
             .ToList();
 
-        var importantSteps = rawContent.ImportantSteps
-            .Select(s => s.Trim())
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Distinct()
-            .ToList();
-
-        return new DocumentationContentDto(cleanedSummary, orderedSteps, dedupedDependencies, importantSteps);
+        return new DocumentationContentDto(cleanedSummary, orderedSteps, dedupedDependencies, rawContent.Diagram);
     }
 }

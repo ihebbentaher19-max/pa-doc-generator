@@ -92,7 +92,7 @@ public class AzureOpenAiDocumentationService : IAiDocumentationService
             var result = await _client.CreateResponseAsync(requestOptions);
             var rawJson = result.Value.GetOutputText();
 
-            return ParseModelResponse(ExtractJsonPayload(rawJson));
+            return ParseModelResponse(ExtractJsonPayload(rawJson),parsedFlow);
         }
         catch (Exception ex)
         {
@@ -100,43 +100,75 @@ public class AzureOpenAiDocumentationService : IAiDocumentationService
             return BuildFallbackDocumentation(parsedFlow);
         }
     }
-
+    private static string GetNodeName(
+        ParsedFlow flow,
+        string nodeId)
+    {
+        return flow.Nodes
+            .FirstOrDefault(node => node.Id == nodeId)
+            ?.Name ?? nodeId;
+    }
     private static DocumentationContentDto BuildFallbackDocumentation(ParsedFlow flow)
     {
         var summary = $"Documentation de secours pour le flux {flow.FlowName}. " +
             "Les étapes principales sont listées ci-dessous en l'absence de réponse du service IA.";
 
-        var steps = flow.Actions.Select(action => new DocumentationStepDto(
-                action.Name,
-                string.IsNullOrWhiteSpace(action.Type)
-                    ? "Action du flux sans type précisé."
-                    : $"Action de type {action.Type}.",
-                false))
+        var steps = flow.Nodes
+            .Select(node => new DocumentationStepDto(
+                node.Id,
+                node.Name,
+                node.Type,
+                node.ConnectorReference,
+                string.IsNullOrWhiteSpace(node.Type)
+                    ? "Étape technique extraite du flux."
+                    : $"Étape technique de type {node.Type} extraite du flux.",
+                node.NodeType switch
+                {
+                    "Trigger" => "Déclenche le démarrage du flux.",
+                    "Condition" => "Contrôle le déroulement du flux selon une condition.",
+                    "Loop" => "Répète le traitement selon la structure détectée dans le flux.",
+                    "Variable" => "Manipule une variable détectée dans le flux.",
+                    _ => "Participe au traitement technique du flux."
+                },
+                node.UsedVariables
+                    .Select(variableName => new DocumentationVariableDto(
+                        variableName,
+                        flow.Variables
+                            .FirstOrDefault(v => v.Name == variableName)
+                            ?.InitialValue,
+                        $"Variable utilisée par l'étape {node.Name}."))
+                    .ToList(),
+                node.Inputs))
             .ToList();
 
-        var dependencies = new List<DocumentationDependencyDto>();
-        foreach (var condition in flow.Conditions)
-        {
-            foreach (var actionName in condition.ActionsIfTrue)
-            {
-                dependencies.Add(new DocumentationDependencyDto(
-                    condition.Name,
-                    actionName,
-                    $"Lorsque la condition '{condition.Name}' est vraie, '{actionName}' est exécutée."));
-            }
+        var dependencies = flow.Edges
+            .Select(edge => new DocumentationDependencyDto(
+                GetNodeName(flow, edge.SourceId),
+                GetNodeName(flow, edge.TargetId),
+                string.IsNullOrWhiteSpace(edge.Label)
+                    ? "Exécution entre les deux éléments du flux."
+                    : $"Relation technique correspondant à la branche ou au lien « {edge.Label} ».",
+                string.IsNullOrWhiteSpace(edge.Label)
+                    ? "Exécution"
+                    : edge.Label
+            ))
+            .ToList();
+        var diagram = new DocumentationDiagramDto(
+            flow.Nodes.Select(node => new DocumentationDiagramNodeDto(
+                node.Id,
+                node.Name,
+                node.Type,
+                node.NodeType)).ToList(),
+            flow.Edges.Select(edge => new DocumentationDiagramEdgeDto(
+                edge.SourceId,
+                edge.TargetId,
+                edge.Label)).ToList());
 
-            foreach (var actionName in condition.ActionsIfFalse)
-            {
-                dependencies.Add(new DocumentationDependencyDto(
-                    condition.Name,
-                    actionName,
-                    $"Lorsque la condition '{condition.Name}' est fausse, '{actionName}' est exécutée."));
-            }
-        }
-
-        var importantSteps = flow.Actions.Select(a => a.Name).ToList();
-
-        return new DocumentationContentDto(summary, steps, dependencies, importantSteps);
+        return new DocumentationContentDto(
+            summary,
+            steps,
+            dependencies,
+            diagram);
     }
 
     /// <summary>
@@ -182,7 +214,7 @@ public class AzureOpenAiDocumentationService : IAiDocumentationService
         return text;
     }
 
-    private static DocumentationContentDto ParseModelResponse(string rawJson)
+    private static DocumentationContentDto ParseModelResponse(string rawJson, ParsedFlow flow)
     {
         using var doc = JsonDocument.Parse(rawJson);
         var root = doc.RootElement;
@@ -194,33 +226,100 @@ public class AzureOpenAiDocumentationService : IAiDocumentationService
         {
             foreach (var step in stepsEl.EnumerateArray())
             {
+                var stepId = step.TryGetProperty("stepId", out var idEl)
+                    ? idEl.GetString() ?? string.Empty
+                    : string.Empty;
+                var sourceNode = flow.Nodes
+                    .FirstOrDefault(node => node.Id == stepId);
+                var variables = new List<DocumentationVariableDto>();
+
+                if (sourceNode != null &&
+                    step.TryGetProperty("variables", out var variablesEl) &&
+                    variablesEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var variable in variablesEl.EnumerateArray())
+                    {
+                        var variableName = variable.TryGetProperty("name", out var nameEl)
+                            ? nameEl.GetString() ?? string.Empty
+                            : string.Empty;
+
+                        // La variable doit réellement être détectée dans le nœud source.
+                        if (!sourceNode.UsedVariables.Contains(variableName))
+                        {
+                            continue;
+                        }
+
+                        var flowVariable = flow.Variables
+                            .FirstOrDefault(v => v.Name == variableName);
+
+                        variables.Add(new DocumentationVariableDto(
+                            variableName,
+                            flowVariable?.InitialValue,
+                            variable.TryGetProperty("description", out var descriptionEl)
+                                ? descriptionEl.GetString() ?? string.Empty
+                                : string.Empty
+                        ));
+                    }
+                }
+
+                var inputs = sourceNode?.Inputs != null
+                    ? new Dictionary<string, string>(sourceNode.Inputs)
+                    : new Dictionary<string, string>();
+
                 steps.Add(new DocumentationStepDto(
-                    step.GetProperty("stepName").GetString() ?? string.Empty,
-                    step.GetProperty("description").GetString() ?? string.Empty,
-                    step.TryGetProperty("isImportant", out var imp) && imp.GetBoolean()
+                    stepId,
+                    sourceNode?.Name ??
+                        (step.TryGetProperty("stepName", out var stepNameEl)
+                            ? stepNameEl.GetString() ?? string.Empty
+                            : string.Empty),
+                    sourceNode?.Type ??
+                        (step.TryGetProperty("stepType", out var typeEl)
+                            ? typeEl.GetString() ?? string.Empty
+                            : string.Empty),
+                    sourceNode?.ConnectorReference,
+                    step.TryGetProperty("description", out var stepDescriptionEl)
+                        ? stepDescriptionEl.GetString() ?? string.Empty
+                        : string.Empty,
+                    step.TryGetProperty("purpose", out var purposeEl)
+                        ? purposeEl.GetString() ?? string.Empty
+                        : string.Empty,
+                    variables,
+                    inputs
                 ));
             }
         }
 
-        var dependencies = new List<DocumentationDependencyDto>();
-        if (root.TryGetProperty("dependencies", out var depsEl))
-        {
-            foreach (var dep in depsEl.EnumerateArray())
-            {
-                dependencies.Add(new DocumentationDependencyDto(
-                    dep.GetProperty("from").GetString() ?? string.Empty,
-                    dep.GetProperty("to").GetString() ?? string.Empty,
-                    dep.GetProperty("explanationText").GetString() ?? string.Empty
-                ));
-            }
-        }
+        var dependencies = flow.Edges
+            .Select(edge => new DocumentationDependencyDto(
+                GetNodeName(flow, edge.SourceId),
+                GetNodeName(flow, edge.TargetId),
+                string.IsNullOrWhiteSpace(edge.Label)
+                    ? "Exécution entre les deux éléments du flux."
+                    : $"Relation technique correspondant à la branche ou au lien « {edge.Label} ». ",
+                string.IsNullOrWhiteSpace(edge.Label)
+                    ? "Exécution"
+                    : edge.Label
+            ))
+            .ToList();
+            
+        var diagram = new DocumentationDiagramDto(
+            flow.Nodes.Select(node => new DocumentationDiagramNodeDto(
+                node.Id,
+                node.Name,
+                node.Type,
+                node.NodeType
+            )).ToList(),
+            flow.Edges.Select(edge => new DocumentationDiagramEdgeDto(
+                edge.SourceId,
+                edge.TargetId,
+                edge.Label
+            )).ToList()
+        );
 
-        var importantSteps = new List<string>();
-        if (root.TryGetProperty("importantSteps", out var impStepsEl))
-        {
-            importantSteps.AddRange(impStepsEl.EnumerateArray().Select(s => s.GetString() ?? string.Empty));
+    return new DocumentationContentDto(
+        summary,
+        steps,
+        dependencies,
+        diagram);
         }
-
-        return new DocumentationContentDto(summary, steps, dependencies, importantSteps);
-    }
 }

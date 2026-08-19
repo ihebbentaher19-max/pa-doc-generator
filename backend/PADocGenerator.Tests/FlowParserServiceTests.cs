@@ -18,23 +18,41 @@ public class FlowParserServiceTests
     }
 
     [Fact]
-    public void Parse_RealisticFlow_ExtractsNonConditionNonVariableActions()
-    {
-        var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
+public void Parse_RealisticFlow_ExtractsActionNodes()
+{
+    var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
 
-        parsed.Actions.Select(a => a.Name).Should()
-            .BeEquivalentTo("Send an email", "Approve request", "Reject request");
-    }
+    parsed.Nodes
+        .Where(node => node.NodeType == "Action")
+        .Select(node => node.Name)
+        .Should()
+        .BeEquivalentTo(
+            "Send an email",
+            "Initialize counter",
+            "Approve request",
+            "Reject request");
+}
 
     [Fact]
-    public void Parse_RealisticFlow_ExtractsOneConditionWithBothBranches()
-    {
-        var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
+public void Parse_RealisticFlow_ExtractsConditionAndBothBranches()
+{
+    var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
 
-        parsed.Conditions.Should().HaveCount(1);
-        parsed.Conditions[0].ActionsIfTrue.Should().Contain("Approve request");
-        parsed.Conditions[0].ActionsIfFalse.Should().Contain("Reject request");
-    }
+    var condition = parsed.Nodes
+        .Single(node => node.NodeType == "Condition");
+
+    condition.Name.Should().Be("Condition");
+
+    parsed.Edges.Should().Contain(edge =>
+        edge.SourceId == condition.Id &&
+        edge.TargetId == "Approve_request" &&
+        edge.Label == "Oui");
+
+    parsed.Edges.Should().Contain(edge =>
+        edge.SourceId == condition.Id &&
+        edge.TargetId == "Reject_request" &&
+        edge.Label == "Non");
+}
 
     [Fact]
     public void Parse_RealisticFlow_ExtractsVariableFromVariablesArraySchema()
@@ -56,12 +74,13 @@ public class FlowParserServiceTests
     }
 
     [Fact]
-    public void Parse_FirstAction_HasNoRunsAfterDependency()
+    public void Parse_FirstAction_IsConnectedToTrigger()
     {
         var parsed = _sut.Parse(SampleFlows.ApprovalFlowJson);
 
-        var sendEmail = parsed.Actions.First(a => a.Name == "Send an email");
-        sendEmail.RunsAfter.Should().BeNull();
+        parsed.Edges.Should().Contain(edge =>
+            edge.SourceId == "manual" &&
+            edge.TargetId == "Send_an_email");
     }
 
     [Fact]
@@ -85,7 +104,10 @@ public class FlowParserServiceTests
 
         var parsed = _sut.Parse(json);
 
-        parsed.Actions.Should().ContainSingle();
+        parsed.Nodes
+          .Where(node => node.NodeType == "Action")
+          .Should()
+          .ContainSingle();
         parsed.Connectors.Should().BeEmpty();
     }
 
@@ -103,7 +125,10 @@ public class FlowParserServiceTests
 
         var parsed = _sut.Parse(json);
 
-        parsed.Actions.Should().ContainSingle();
+        parsed.Nodes
+          .Where(node => node.NodeType == "Action")
+          .Should()
+          .ContainSingle();
         parsed.FlowName.Should().Be("Flux sans nom");
     }
 }

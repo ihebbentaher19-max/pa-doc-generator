@@ -9,10 +9,20 @@ public class DocumentFormattingServiceTests
 {
     private readonly DocumentFormattingService _sut = new();
 
+    private static DocumentationDiagramDto EmptyDiagram() =>
+        new(
+            new List<DocumentationDiagramNodeDto>(),
+            new List<DocumentationDiagramEdgeDto>()
+        );
+
     [Fact]
     public void Format_TrimsFunctionalSummary()
     {
-        var raw = new DocumentationContentDto("  résumé avec espaces  ", new(), new(), new());
+        var raw = new DocumentationContentDto(
+            "  résumé avec espaces  ",
+            new List<DocumentationStepDto>(),
+            new List<DocumentationDependencyDto>(),
+            EmptyDiagram());
 
         var formatted = _sut.Format(raw);
 
@@ -20,21 +30,41 @@ public class DocumentFormattingServiceTests
     }
 
     [Fact]
-    public void Format_OrdersImportantStepsFirst()
+    public void Format_PreservesSteps()
     {
         var raw = new DocumentationContentDto(
             "résumé",
             new List<DocumentationStepDto>
             {
-                new("Étape secondaire", "description B", false),
-                new("Étape critique", "description A", true),
+                new(
+                    "step-1",
+                    "Étape secondaire",
+                    "Compose",
+                    null,
+                    "description B",
+                    "Préparer les données.",
+                    new List<DocumentationVariableDto>(),
+                    new Dictionary<string, string>()
+                ),
+                new(
+                    "step-2",
+                    "Étape critique",
+                    "Condition",
+                    null,
+                    "description A",
+                    "Vérifier une condition.",
+                    new List<DocumentationVariableDto>(),
+                    new Dictionary<string, string>()
+                )
             },
-            new(), new());
+            new List<DocumentationDependencyDto>(),
+            EmptyDiagram());
 
         var formatted = _sut.Format(raw);
 
-        formatted.Steps.First().IsImportant.Should().BeTrue();
-        formatted.Steps.First().StepName.Should().Be("Étape critique");
+        formatted.Steps.Should().HaveCount(2);
+        formatted.Steps.Select(s => s.StepName).Should()
+            .BeEquivalentTo("Étape secondaire", "Étape critique");
     }
 
     [Fact]
@@ -42,31 +72,17 @@ public class DocumentFormattingServiceTests
     {
         var raw = new DocumentationContentDto(
             "résumé",
-            new(),
+            new List<DocumentationStepDto>(),
             new List<DocumentationDependencyDto>
             {
-                new("A", "B", "première explication"),
-                new("A", "B", "explication dupliquée"),
-                new("B", "C", "autre lien"),
+                new("A", "B", "première explication", "Exécution"),
+                new("A", "B", "explication dupliquée", "Exécution"),
+                new("B", "C", "autre lien", "Oui")
             },
-            new());
+            EmptyDiagram());
 
         var formatted = _sut.Format(raw);
 
         formatted.Dependencies.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public void Format_DeduplicatesAndCleansImportantSteps()
-    {
-        var raw = new DocumentationContentDto(
-            "résumé", new(), new(),
-            new List<string> { "Étape critique", "Étape critique", "   ", "Autre étape importante" });
-
-        var formatted = _sut.Format(raw);
-
-        formatted.ImportantSteps.Should().HaveCount(2);
-        formatted.ImportantSteps.Should().Contain("Étape critique");
-        formatted.ImportantSteps.Should().Contain("Autre étape importante");
     }
 }

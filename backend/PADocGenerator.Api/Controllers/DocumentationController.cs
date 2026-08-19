@@ -57,8 +57,27 @@ public class DocumentationController : ControllerBase
             return UnprocessableEntity(new { message = UserMessages.InvalidFlowForDocumentation });
 
         var parsedFlow = _flowParserService.Parse(flowImport.RawJson);
+
         var rawContent = await _aiDocumentationService.GenerateAsync(parsedFlow, ct);
-        var formattedContent = _formattingService.Format(rawContent);
+
+        var contentWithDiagram = rawContent with
+        {
+            Diagram = new DocumentationDiagramDto(
+                parsedFlow.Nodes.Select(node =>
+                    new DocumentationDiagramNodeDto(
+                        node.Id,
+                        node.Name,
+                        node.Type,
+                        node.NodeType)).ToList(),
+
+                parsedFlow.Edges.Select(edge =>
+                    new DocumentationDiagramEdgeDto(
+                        edge.SourceId,
+                        edge.TargetId,
+                        edge.Label)).ToList())
+        };
+
+        var formattedContent = _formattingService.Format(contentWithDiagram);
 
         var documentation = await _managementService.CreateFromGenerationAsync(
             flowImport.Id, User.GetUserId(), formattedContent, ct);
@@ -87,8 +106,27 @@ public class DocumentationController : ControllerBase
             return UnprocessableEntity(new { message = UserMessages.InvalidOriginFlow });
 
         var parsedFlow = _flowParserService.Parse(flowImport.RawJson);
+        
         var rawContent = await _aiDocumentationService.GenerateAsync(parsedFlow, ct);
-        var formattedContent = _formattingService.Format(rawContent);
+
+        var contentWithDiagram = rawContent with
+        {
+            Diagram = new DocumentationDiagramDto(
+                parsedFlow.Nodes.Select(node =>
+                    new DocumentationDiagramNodeDto(
+                        node.Id,
+                        node.Name,
+                        node.Type,
+                        node.NodeType)).ToList(),
+
+                parsedFlow.Edges.Select(edge =>
+                    new DocumentationDiagramEdgeDto(
+                        edge.SourceId,
+                        edge.TargetId,
+                        edge.Label)).ToList())
+        };
+
+        var formattedContent = _formattingService.Format(contentWithDiagram);
 
         var updated = await _managementService.UpdateAsync(
             id, User.GetUserId(),

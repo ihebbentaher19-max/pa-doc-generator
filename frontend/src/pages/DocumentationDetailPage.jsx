@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Download, History, Star, Plus, Trash2, Save, RefreshCw } from "lucide-react";
+import { Download, History, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import StatusBadge from "../components/ui/StatusBadge";
 import Button from "../components/ui/Button";
@@ -18,6 +18,7 @@ import {
 } from "../services/documentationService";
 import { getApiErrorMessage } from "../services/api";
 import { inputStyle } from "../styles/formStyles";
+import DocumentationDiagram from "../components/DocumentationDiagram";
 
 const STATUS_OPTIONS = ["Brouillon", "Valide", "Archive"];
 
@@ -25,7 +26,6 @@ export default function DocumentationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
-
   const [doc, setDoc] = useState(null);
   const [content, setContent] = useState(null);
   const [title, setTitle] = useState("");
@@ -41,6 +41,8 @@ export default function DocumentationDetailPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState([]);
   const [expandedVersion, setExpandedVersion] = useState(null);
+  
+  const canModify = doc && (isAdmin || doc.createdByUserId === user?.id);
 
   function loadDocument() {
     setIsLoading(true);
@@ -145,6 +147,20 @@ export default function DocumentationDetailPage() {
     }));
   }
 
+  function updateStepVariables(index, value) {
+    const variables = value
+      .split(",")
+      .map((variable) => variable.trim())
+      .filter(Boolean)
+      .map((name) => ({
+        name,
+        value: null,
+        description: "",
+      }));
+
+    updateStep(index, "variables", variables);
+  }
+
   function removeStep(index) {
     setContent((c) => ({ ...c, steps: c.steps.filter((_, i) => i !== index) }));
   }
@@ -152,7 +168,19 @@ export default function DocumentationDetailPage() {
   function addStep() {
     setContent((c) => ({
       ...c,
-      steps: [...c.steps, { stepName: "Nouvelle étape", description: "", isImportant: false }],
+      steps: [
+        ...c.steps,
+        {
+          stepId: "",
+          stepName: "Nouvelle étape",
+          stepType: "Action",
+          connector: null,
+          description: "",
+          purpose: "",
+          variables: [],
+          inputs: {},
+        },
+      ],
     }));
   }
 
@@ -175,7 +203,6 @@ export default function DocumentationDetailPage() {
   // Section 6 (gestion des rôles) : un utilisateur ne peut modifier, changer le
   // statut, régénérer ou exporter que ses propres documentations ; un
   // administrateur peut agir sur toutes les documentations.
-  const canModify = isAdmin || doc.createdByUserId === user?.id;
 
   // Section 4 : n'autoriser l'enregistrement que s'il y a une modification
   // réelle par rapport à la version actuellement chargée, pour éviter de
@@ -296,7 +323,24 @@ export default function DocumentationDetailPage() {
                           <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
                             {v.content.steps.map((s, i) => (
                               <li key={i}>
-                                {s.isImportant ? "★ " : ""}{s.stepName} — <span style={{ color: "var(--color-muted)" }}>{s.description}</span>
+                                <strong>{s.stepName}</strong>
+                                {s.stepType && ` (${s.stepType})`}
+                                {" — "}
+                                <span style={{ color: "var(--color-muted)" }}>
+                                  {s.description}
+                                </span>
+
+                                {s.connector && (
+                                  <div style={{ marginTop: 4, color: "var(--color-muted)" }}>
+                                    Connecteur : {s.connector}
+                                  </div>
+                                )}
+
+                                {s.variables?.length > 0 && (
+                                  <div style={{ marginTop: 4, color: "var(--color-muted)" }}>
+                                    Variables : {s.variables.map((variable) => variable.name).join(", ")}
+                                  </div>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -308,7 +352,14 @@ export default function DocumentationDetailPage() {
                           <strong>Dépendances ({v.content.dependencies.length}) :</strong>
                           <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
                             {v.content.dependencies.map((d, i) => (
-                              <li key={i}>{d.from} → {d.to} : <span style={{ color: "var(--color-muted)" }}>{d.explanationText}</span></li>
+                            <li key={i}>
+                              {d.from} → {d.to}
+                              {d.relationshipType && ` (${d.relationshipType})`}
+                              : 
+                              <span style={{ color: "var(--color-muted)" }}>
+                                {d.explanationText}
+                              </span>
+                            </li> 
                             ))}
                           </ul>
                         </div>
@@ -342,44 +393,202 @@ export default function DocumentationDetailPage() {
         </div>
         <div className="stack" style={{ gap: 10 }}>
           {content.steps.map((step, index) => (
-            <div key={index} className="card" style={{ padding: "var(--space-4)", background: "var(--color-surface-alt)" }}>
-              <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-                <input
-                  value={step.stepName}
-                  onChange={(e) => updateStep(index, "stepName", e.target.value)}
-                  disabled={!canModify}
-                  style={{ ...inputStyle, flex: 1, fontWeight: 600 }}
-                />
-                <button
-                  onClick={() => updateStep(index, "isImportant", !step.isImportant)}
-                  disabled={!canModify}
-                  title="Marquer comme étape importante"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    background: step.isImportant ? "var(--color-accent-soft)" : "var(--color-surface)",
-                    borderRadius: "var(--radius-sm)",
-                    padding: "8px 10px",
-                  }}
-                >
-                  <Star size={15} fill={step.isImportant ? "var(--color-accent)" : "none"} color="var(--color-accent)" />
-                </button>
-                <button
-                  onClick={() => removeStep(index)}
-                  disabled={!canModify}
-                  style={{ border: "none", background: "transparent", color: "var(--color-danger)", padding: 8 }}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
+          <div key={index} className="card"
+          style={{
+            padding: "var(--space-4)",
+            background: "var(--color-surface-alt)",
+          }}
+        >
+          <div
+            className="row"
+            style={{
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <input
+              value={step.stepName}
+              onChange={(e) => updateStep(index, "stepName", e.target.value)}
+              disabled={!canModify}
+              placeholder="Nom de l'étape"
+              style={{
+                ...inputStyle,
+                flex: 1,
+                fontWeight: 600,
+              }}
+            />
+
+            <button
+              onClick={() => removeStep(index)}
+              disabled={!canModify}
+              title="Supprimer cette étape"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "var(--color-danger)",
+                padding: 8,
+              }}
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+
+          <div className="stack" style={{ gap: 10 }}>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginBottom: 5,
+                }}
+              >
+                Type de l'étape
+              </label>
+
+              <input
+                value={step.stepType || ""}
+                onChange={(e) => updateStep(index, "stepType", e.target.value)}
+                disabled={!canModify}
+                placeholder="Ex. Action, Condition, Déclencheur..."
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginBottom: 5,
+                }}
+              >
+                Description
+              </label>
+
               <textarea
                 value={step.description}
                 onChange={(e) => updateStep(index, "description", e.target.value)}
-                rows={2}
+                rows={3}
                 disabled={!canModify}
-                style={{ ...inputStyle, width: "100%", resize: "vertical" }}
+                placeholder="Expliquez le rôle de cette étape dans le flux..."
+                style={{
+                  ...inputStyle,
+                  width: "100%",
+                  resize: "vertical",
+                }}
               />
             </div>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginBottom: 5,
+                }}
+              >
+                Objectif de l'étape
+              </label>
+
+              <textarea
+                value={step.purpose || ""}
+                onChange={(e) => updateStep(index, "purpose", e.target.value)}
+                rows={2}
+                disabled={!canModify}
+                placeholder="Expliquez pourquoi cette étape est nécessaire dans le flux..."
+                style={{
+                  ...inputStyle,
+                  width: "100%",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginBottom: 5,
+                }}
+              >
+                Connecteur utilisé
+              </label>
+
+              <input
+                value={step.connector || ""}
+                onChange={(e) => updateStep(index, "connector", e.target.value || null)}
+                disabled={!canModify}
+                placeholder="Ex. SharePoint, Outlook, Teams..."
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </div>
+
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginBottom: 5,
+                }}
+              >
+                Variables ou données utilisées
+              </label>
+
+              <input
+                value={(step.variables || []).map((variable) => variable.name).join(", ")}
+                onChange={(e) => updateStepVariables(index, e.target.value)}
+                disabled={!canModify}
+                placeholder="Ex. Email, Priorite, Statut"
+                style={{ ...inputStyle, width: "100%" }}
+              />
+
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11.5,
+                  color: "var(--color-muted)",
+                }}
+              >
+                Séparez les variables par des virgules.
+              </div>
+            </div>
+            {step.inputs && Object.keys(step.inputs).length > 0 && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    marginBottom: 5,
+                  }}
+                >
+                  Paramètres et données d'entrée
+                </label>
+
+                <div
+                  style={{
+                    padding: 10,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: 12,
+                  }}
+                >
+                  {Object.entries(step.inputs).map(([key, value]) => (
+                    <div key={key} style={{ marginBottom: 6 }}>
+                      <strong>{key}</strong> : {value}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
           ))}
+
         </div>
       </section>
 
@@ -390,25 +599,30 @@ export default function DocumentationDetailPage() {
           <div className="stack" style={{ gap: 8 }}>
             {content.dependencies.map((dep, index) => (
               <div key={index} style={{ fontSize: 13.5, padding: "8px 0", borderBottom: "1px solid var(--color-border)" }}>
-                <strong>{dep.from} → {dep.to}</strong> : {dep.explanationText}
+                <strong>{dep.from} → {dep.to}</strong>
+                {dep.relationshipType && (
+                  <span style={{ color: "var(--color-muted)" }}>
+                    {" "}({dep.relationshipType})
+                  </span>
+                )}
+                : {dep.explanationText}
               </div>
             ))}
           </div>
         </section>
       )}
+      {/* Diagramme du flux */}
+      {content.diagram?.nodes?.length > 0 && (
+        <section
+          className="card"
+          style={{
+            padding: "var(--space-5)",
+            marginTop: "var(--space-5)",
+          }}
+        >
+          <h2 style={{ marginBottom: 12 }}>Diagramme du flux</h2>
 
-      {/* Étapes importantes */}
-      {content.importantSteps.length > 0 && (
-        <section className="card" style={{ padding: "var(--space-5)" }}>
-          <h2 style={{ marginBottom: 12 }}>Étapes importantes à retenir</h2>
-          <div className="stack" style={{ gap: 8 }}>
-            {content.importantSteps.map((step, index) => (
-              <div key={index} className="row" style={{ gap: 8, fontSize: 13.5 }}>
-                <Star size={14} fill="var(--color-accent)" color="var(--color-accent)" />
-                {step}
-              </div>
-            ))}
-          </div>
+          <DocumentationDiagram diagram={content.diagram} />
         </section>
       )}
     </div>

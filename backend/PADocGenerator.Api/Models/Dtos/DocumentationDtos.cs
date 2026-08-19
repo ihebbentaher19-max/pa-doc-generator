@@ -2,16 +2,45 @@ namespace PADocGenerator.Api.Models.Dtos;
 
 public record GenerateDocumentationRequestDto(Guid FlowImportId);
 
+public record DocumentationVariableDto(
+    string Name,
+    string? Value,
+    string Description
+);
+
 public record DocumentationStepDto(
+    string StepId,
     string StepName,
+    string StepType,
+    string? Connector,
     string Description,
-    bool IsImportant
+    string Purpose,
+    List<DocumentationVariableDto> Variables,
+    Dictionary<string, string> Inputs
 );
 
 public record DocumentationDependencyDto(
     string From,
     string To,
-    string ExplanationText
+    string ExplanationText,
+    string RelationshipType
+);
+public record DocumentationDiagramNodeDto(
+    string Id,
+    string Name,
+    string Type,
+    string NodeType
+);
+
+public record DocumentationDiagramEdgeDto(
+    string SourceId,
+    string TargetId,
+    string? Label
+);
+
+public record DocumentationDiagramDto(
+    List<DocumentationDiagramNodeDto> Nodes,
+    List<DocumentationDiagramEdgeDto> Edges
 );
 
 /// <summary>
@@ -22,7 +51,7 @@ public record DocumentationContentDto(
     string FunctionalSummary,
     List<DocumentationStepDto> Steps,
     List<DocumentationDependencyDto> Dependencies,
-    List<string> ImportantSteps
+    DocumentationDiagramDto Diagram
 );
 
 public record DocumentationSummaryDto(

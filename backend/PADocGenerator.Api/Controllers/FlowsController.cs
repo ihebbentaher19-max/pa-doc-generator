@@ -66,7 +66,7 @@ public class FlowsController : ControllerBase
         try
         {
             var parsed = _parserService.Parse(request.JsonContent);
-            flowImport.ActionsCount = parsed.Actions.Count;
+            flowImport.ActionsCount = parsed.Nodes.Count;
             flowImport.Name = string.IsNullOrWhiteSpace(request.FileName) ? parsed.FlowName : request.FileName;
         }
         catch

@@ -22,11 +22,39 @@ public class DocumentManagementServiceTests
         return (new DocumentManagementService(db), db, user.Id, flow.Id);
     }
 
-    private static DocumentationContentDto SampleContent(string summary = "Résumé initial") =>
-        new(summary,
-            new List<DocumentationStepDto> { new("Étape 1", "Description 1", true) },
-            new List<DocumentationDependencyDto>(),
-            new List<string> { "Étape 1" });
+    private static DocumentationDiagramDto SampleDiagram() =>
+    new(
+        new List<DocumentationDiagramNodeDto>
+        {
+            new(
+                "step-1",
+                "Étape 1",
+                "Compose",
+                "Action"
+            )
+        },
+        new List<DocumentationDiagramEdgeDto>()
+    );
+    private static DocumentationContentDto SampleContent(
+    string summary = "Résumé initial") =>
+    new(
+        summary,
+        new List<DocumentationStepDto>
+        {
+            new(
+                "step-1",
+                "Étape 1",
+                "Compose",
+                null,
+                "Description 1",
+                "Traiter les données.",
+                new List<DocumentationVariableDto>(),
+                new Dictionary<string, string>()
+            )
+        },
+        new List<DocumentationDependencyDto>(),
+        SampleDiagram()
+    );
 
     [Fact]
     public async Task CreateFromGenerationAsync_CreatesDocumentationWithVersionOne()
@@ -77,9 +105,41 @@ public class DocumentManagementServiceTests
 
         var updatedContent = new DocumentationContentDto(
             "Résumé modifié",
-            new List<DocumentationStepDto> { new("Étape 2", "Description 2", true) },
-            new List<DocumentationDependencyDto> { new("Étape 1", "Étape 2", "Dépendance de test") },
-            new List<string> { "Étape 2" });
+            new List<DocumentationStepDto>
+            {
+                new(
+                    "step-2",
+                    "Étape 2",
+                    "Compose",
+                    null,
+                    "Description 2",
+                    "Effectuer le traitement suivant.",
+                    new List<DocumentationVariableDto>(),
+                    new Dictionary<string, string>()
+                )
+            },
+            new List<DocumentationDependencyDto>
+            {
+                new(
+                    "Étape 1",
+                    "Étape 2",
+                    "Dépendance de test",
+                    "Exécution"
+                )
+            },
+            new DocumentationDiagramDto(
+                new List<DocumentationDiagramNodeDto>
+                {
+                    new(
+                        "step-2",
+                        "Étape 2",
+                        "Compose",
+                        "Action"
+                    )
+                },
+                new List<DocumentationDiagramEdgeDto>()
+            )
+        );
 
         await sut.UpdateAsync(
             created.Id,
@@ -88,9 +148,17 @@ public class DocumentManagementServiceTests
 
         var version = await sut.GetVersionAsync(created.Id, 2);
         version.Content.FunctionalSummary.Should().Be("Résumé modifié");
-        version.Content.Steps.Should().ContainSingle(s => s.StepName == "Étape 2" && s.IsImportant);
-        version.Content.Dependencies.Should().ContainSingle(d => d.From == "Étape 1" && d.To == "Étape 2");
-        version.Content.ImportantSteps.Should().ContainSingle(s => s == "Étape 2");
+        version.Content.Steps.Should().ContainSingle(s =>
+            s.StepName == "Étape 2" &&
+            s.StepType == "Compose");
+
+        version.Content.Dependencies.Should().ContainSingle(d =>
+            d.From == "Étape 1" &&
+            d.To == "Étape 2" &&
+            d.RelationshipType == "Exécution");
+
+        version.Content.Diagram.Nodes.Should().ContainSingle(n =>
+            n.Name == "Étape 2");
     }
 
     [Fact]
