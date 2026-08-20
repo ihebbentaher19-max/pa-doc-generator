@@ -91,6 +91,64 @@ services, tous les controllers) **ne dépendent d'aucun package externe** au-del
 du SDK ASP.NET Core lui-même — c'est volontaire, pour limiter la surface de
 risque de compilation.
 
+### 1.5 Import direct Microsoft 365 / Power Platform
+
+L'import JSON reste disponible, mais le module d'importation couvre aussi le
+parcours métier demandé : l'utilisateur s'authentifie avec son compte Microsoft,
+choisit un environnement auquel il a accès, voit les flux cloud disponibles et
+importe celui qu'il sélectionne. Le backend ne stocke jamais de jeton Microsoft
+ni de secret d'application.
+
+```mermaid
+sequenceDiagram
+    actor U as Utilisateur
+    participant SPA as React (OAuth PKCE)
+    participant API as API PADocGenerator
+    participant PP as API Power Platform
+    participant DV as API Dataverse
+
+    U->>SPA: Connexion Microsoft 365
+    SPA->>SPA: Authorization Code + PKCE
+    SPA->>PP: Jeton délégué : environnements
+    PP-->>SPA: Environnements accessibles
+    U->>SPA: Choisit environnement et flux
+    SPA->>API: Jeton PP : liste des flux
+    API->>PP: GET cloudFlows
+    PP-->>API: Flux accessibles
+    SPA->>DV: Jeton délégué ciblé sur Dataverse
+    SPA->>API: IDs + jetons temporaires
+    API->>DV: GET workflow.clientdata
+    DV-->>API: Définition JSON du flux
+    API->>API: Validation, parsing et enregistrement
+```
+
+La liste d'environnements appelle `GET /environmentmanagement/environments` et
+la liste de flux `GET /powerautomate/environments/{environmentId}/cloudFlows`
+de l'API Power Platform (version `2024-10-01`). Pour obtenir la définition, le
+service appelle l'API Web Dataverse de l'URL fournie par cet environnement et
+lit `workflow.clientdata`; Microsoft documente ce champ comme le JSON de
+définition et les références de connexion du flux. Cette approche évite l'API
+historique `api.flow.microsoft.com`, que Microsoft qualifie de non prise en
+charge.
+
+Les composants ajoutés sont :
+
+- `frontend/src/services/microsoftIdentityService.js` : OAuth Authorization
+  Code + PKCE et cache de jetons uniquement en mémoire.
+- `frontend/src/pages/ImportFlowPage.jsx` : choix Microsoft 365 → environnement
+  → flux, avant l'import existant et sans retirer le dépôt JSON.
+- `backend/.../PowerPlatformFlowService.cs` : proxy de lecture à destination
+  fixe, vérification de l'environnement et du flux par les API Microsoft,
+  puis lecture Dataverse sécurisée.
+- `backend/.../FlowsController.cs` : endpoints REST et import direct.
+- `FlowImport` + migration `AddPowerPlatformFlowImport` : traçabilité de la
+  provenance et des IDs tenant/environnement/flux, jamais des jetons.
+
+Contraintes connues : l'environnement doit avoir une base Dataverse et le
+compte doit avoir la permission de lire le workflow. Microsoft précise que la
+gestion programmée est documentée en priorité pour les flux de solutions, ce
+qui justifie le maintien de l'import JSON comme repli explicite.
+
 ---
 
 ## 2. Détail de chaque fichier

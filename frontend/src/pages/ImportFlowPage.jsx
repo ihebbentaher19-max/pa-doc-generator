@@ -1,11 +1,21 @@
 import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UploadCloud, FileJson, CheckCircle2, XCircle } from "lucide-react";
+import { UploadCloud, FileJson, CheckCircle2, XCircle, Cloud, LogIn, RefreshCw } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import Button from "../components/ui/Button";
 import Callout from "../components/ui/Callout";
 import PipelineTrail from "../components/ui/PipelineTrail";
-import { importFlow } from "../services/flowsService";
+import {
+  getPowerPlatformEnvironments,
+  getPowerPlatformFlows,
+  importFlow,
+  importPowerPlatformFlow,
+} from "../services/flowsService";
+import {
+  getDataverseAccessToken,
+  getPowerPlatformAccessToken,
+  isMicrosoftIdentityConfigured,
+} from "../services/microsoftIdentityService";
 import { generateDocumentation } from "../services/documentationService";
 import { getApiErrorMessage } from "../services/api";
 
@@ -29,6 +39,16 @@ export default function ImportFlowPage() {
   const [pipelineStep, setPipelineStep] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+
+  const [powerPlatformToken, setPowerPlatformToken] = useState(null);
+  const [environments, setEnvironments] = useState([]);
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState("");
+  const [flows, setFlows] = useState([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
+  const [isConnectingMicrosoft, setIsConnectingMicrosoft] = useState(false);
+  const [isLoadingFlows, setIsLoadingFlows] = useState(false);
+  const [isImportingPowerPlatform, setIsImportingPowerPlatform] = useState(false);
+  const [powerPlatformError, setPowerPlatformError] = useState(null);
 
   const readFile = useCallback((file) => {
     setFileName(file.name);
@@ -61,6 +81,78 @@ export default function ImportFlowPage() {
     }
   }
 
+  async function handleMicrosoftConnect() {
+    setIsConnectingMicrosoft(true);
+    setPowerPlatformError(null);
+    setImportResult(null);
+    try {
+      const token = await getPowerPlatformAccessToken();
+      const availableEnvironments = await getPowerPlatformEnvironments(token);
+      setPowerPlatformToken(token);
+      setEnvironments(availableEnvironments);
+      setSelectedEnvironmentId("");
+      setFlows([]);
+      setSelectedWorkflowId("");
+      if (!availableEnvironments.length) {
+        setPowerPlatformError("Aucun environnement Power Platform accessible n'a été trouvé pour ce compte.");
+      }
+    } catch (err) {
+      setPowerPlatformError(getApiErrorMessage(err, "Impossible de se connecter à Microsoft 365."));
+    } finally {
+      setIsConnectingMicrosoft(false);
+    }
+  }
+
+  async function handleEnvironmentChange(environmentId) {
+    setSelectedEnvironmentId(environmentId);
+    setSelectedWorkflowId("");
+    setFlows([]);
+    setPowerPlatformError(null);
+    if (!environmentId || !powerPlatformToken) return;
+
+    setIsLoadingFlows(true);
+    try {
+      const availableFlows = await getPowerPlatformFlows(environmentId, powerPlatformToken);
+      setFlows(availableFlows);
+      if (!availableFlows.length) {
+        setPowerPlatformError("Aucun flux cloud accessible n'a été trouvé dans cet environnement.");
+      }
+    } catch (err) {
+      setPowerPlatformError(getApiErrorMessage(err, "Impossible de charger les flux de cet environnement."));
+    } finally {
+      setIsLoadingFlows(false);
+    }
+  }
+
+  async function handlePowerPlatformImport() {
+    const environment = environments.find((item) => item.id === selectedEnvironmentId);
+    if (!environment || !selectedWorkflowId || !powerPlatformToken) return;
+
+    if (!environment.dataverseUrl) {
+      setPowerPlatformError("Cet environnement n'a pas de base Dataverse. La définition de ses flux ne peut pas être lue.");
+      return;
+    }
+
+    setIsImportingPowerPlatform(true);
+    setPowerPlatformError(null);
+    setImportResult(null);
+    try {
+      // Le second jeton est limité à la base Dataverse de l'environnement choisi.
+      const dataverseAccessToken = await getDataverseAccessToken(environment.dataverseUrl);
+      const result = await importPowerPlatformFlow({
+        environmentId: selectedEnvironmentId,
+        workflowId: selectedWorkflowId,
+        powerPlatformAccessToken: powerPlatformToken,
+        dataverseAccessToken,
+      });
+      setImportResult(result);
+    } catch (err) {
+      setPowerPlatformError(getApiErrorMessage(err, "L'import du flux Power Platform a échoué."));
+    } finally {
+      setIsImportingPowerPlatform(false);
+    }
+  }
+
   async function handleGenerate() {
     if (!importResult) return;
     setIsGenerating(true);
@@ -90,10 +182,71 @@ export default function ImportFlowPage() {
       <PageHeader
         eyebrow="Module d'importation"
         title="Importer un flux Power Automate"
-        description="Chargez un flux exporté au format JSON. La plateforme vérifie sa conformité avant de lancer la génération de documentation."
+        description="Sélectionnez un flux auquel vous avez accès dans Microsoft 365, ou chargez un export JSON. La plateforme vérifie sa conformité avant de lancer la génération."
       />
 
       <div className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }}>
+        <div className="row" style={{ gap: 10, marginBottom: 8 }}>
+          <Cloud size={20} color="var(--color-primary)" />
+          <h3>Importer depuis Microsoft 365 / Power Platform</h3>
+        </div>
+        <p style={{ fontSize: 13.5, color: "var(--color-ink-soft)", marginBottom: "var(--space-4)" }}>
+          Connectez votre compte Microsoft, choisissez l'environnement puis le flux cloud à documenter. Seuls les flux auxquels votre compte a accès sont affichés.
+        </p>
+
+        {!isMicrosoftIdentityConfigured() ? (
+          <Callout tone="info">
+            La connexion Microsoft doit être configurée avec l'identifiant d'une application Microsoft Entra ID dans <code>VITE_ENTRA_CLIENT_ID</code>.
+          </Callout>
+        ) : (
+          <>
+            <Button onClick={handleMicrosoftConnect} disabled={isConnectingMicrosoft} variant="secondary">
+              {isConnectingMicrosoft ? "Connexion Microsoft en cours…" : <><LogIn size={16} /> {powerPlatformToken ? "Actualiser les environnements" : "Se connecter à Microsoft 365"}</>}
+            </Button>
+
+            {environments.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+                <label className="stack" style={{ gap: 6, fontWeight: 600, fontSize: 13 }}>
+                  Environnement Power Platform
+                  <select value={selectedEnvironmentId} onChange={(e) => handleEnvironmentChange(e.target.value)} style={{ padding: "10px 12px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "white" }}>
+                    <option value="">Sélectionnez un environnement</option>
+                    {environments.map((environment) => (
+                      <option key={environment.id} value={environment.id}>
+                        {environment.displayName}{environment.type ? ` — ${environment.type}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="stack" style={{ gap: 6, fontWeight: 600, fontSize: 13 }}>
+                  Flux cloud
+                  <select value={selectedWorkflowId} onChange={(e) => setSelectedWorkflowId(e.target.value)} disabled={!selectedEnvironmentId || isLoadingFlows} style={{ padding: "10px 12px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "white" }}>
+                    <option value="">{isLoadingFlows ? "Chargement des flux…" : "Sélectionnez un flux"}</option>
+                    {flows.map((flow) => (
+                      <option key={flow.workflowId} value={flow.workflowId}>
+                        {flow.displayName}{flow.state ? ` — ${flow.state}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {selectedWorkflowId && (
+              <div style={{ marginTop: "var(--space-4)" }}>
+                <Button onClick={handlePowerPlatformImport} disabled={isImportingPowerPlatform}>
+                  {isImportingPowerPlatform ? "Import du flux en cours…" : <><RefreshCw size={16} /> Importer le flux sélectionné</>}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+
+        {powerPlatformError && <div style={{ marginTop: "var(--space-4)" }}><Callout tone="error">{powerPlatformError}</Callout></div>}
+      </div>
+
+      <div className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }}>
+        <p style={{ fontWeight: 600, marginBottom: "var(--space-3)" }}>Ou importer un fichier JSON</p>
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
           onDragLeave={() => setIsDraggingOver(false)}

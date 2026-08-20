@@ -29,5 +29,19 @@ public class FlowImport
     public bool IsValid { get; set; }
     public string? ValidationError { get; set; }
 
+    /// <summary>Origine du flux : fichier JSON ou sélection dans Power Platform.</summary>
+    public FlowImportSource Source { get; set; } = FlowImportSource.JsonFile;
+
+    /// <summary>Identifiants de traçabilité Power Platform, sans aucune donnée d'authentification.</summary>
+    public string? PowerPlatformTenantId { get; set; }
+    public string? PowerPlatformEnvironmentId { get; set; }
+    public string? PowerPlatformWorkflowId { get; set; }
+
     public ICollection<Documentation> Documentations { get; set; } = new List<Documentation>();
+}
+
+public enum FlowImportSource
+{
+    JsonFile,
+    PowerPlatform
 }

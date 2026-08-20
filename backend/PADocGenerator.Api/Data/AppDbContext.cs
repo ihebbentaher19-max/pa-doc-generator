@@ -33,6 +33,11 @@ public class AppDbContext : DbContext
             // offrant le type JSONB pour stocker et interroger les flux JSON
             // sans imposer de schéma spécifique."
             e.Property(f => f.RawJson).HasColumnType("jsonb");
+            e.Property(f => f.Source).HasConversion<string>();
+            e.Property(f => f.PowerPlatformTenantId).HasMaxLength(64);
+            e.Property(f => f.PowerPlatformEnvironmentId).HasMaxLength(128);
+            e.Property(f => f.PowerPlatformWorkflowId).HasMaxLength(64);
+            e.HasIndex(f => new { f.PowerPlatformEnvironmentId, f.PowerPlatformWorkflowId });
 
             e.HasOne(f => f.ImportedByUser)
                 .WithMany(u => u.ImportedFlows)

@@ -164,9 +164,25 @@ namespace PADocGenerator.Api.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<string>("PowerPlatformEnvironmentId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PowerPlatformTenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PowerPlatformWorkflowId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("RawJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ValidationError")
                         .HasColumnType("text");
@@ -174,6 +190,8 @@ namespace PADocGenerator.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ImportedByUserId");
+
+                    b.HasIndex("PowerPlatformEnvironmentId", "PowerPlatformWorkflowId");
 
                     b.ToTable("FlowImports");
                 });

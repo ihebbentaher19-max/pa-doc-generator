@@ -19,13 +19,39 @@ public class FlowsController : ControllerBase
 {
     private readonly IFlowValidationService _validationService;
     private readonly IFlowParserService _parserService;
+    private readonly IPowerPlatformFlowService _powerPlatformFlowService;
     private readonly AppDbContext _db;
 
-    public FlowsController(IFlowValidationService validationService, IFlowParserService parserService, AppDbContext db)
+    public FlowsController(
+        IFlowValidationService validationService,
+        IFlowParserService parserService,
+        IPowerPlatformFlowService powerPlatformFlowService,
+        AppDbContext db)
     {
         _validationService = validationService;
         _parserService = parserService;
+        _powerPlatformFlowService = powerPlatformFlowService;
         _db = db;
+    }
+
+    /// <summary>
+    /// Retourne les environnements Power Platform que le compte Microsoft connecté
+    /// peut utiliser. Requiert le jeton délégué transmis temporairement par le SPA.
+    /// </summary>
+    [HttpGet("power-platform/environments")]
+    public async Task<ActionResult<IReadOnlyList<PowerPlatformEnvironmentDto>>> GetPowerPlatformEnvironments(CancellationToken ct)
+    {
+        var environments = await _powerPlatformFlowService.GetEnvironmentsAsync(GetRequiredToken("X-PowerPlatform-Access-Token"), ct);
+        return Ok(environments);
+    }
+
+    /// <summary>Retourne les flux cloud accessibles dans un environnement sélectionné.</summary>
+    [HttpGet("power-platform/environments/{environmentId}/flows")]
+    public async Task<ActionResult<IReadOnlyList<PowerPlatformFlowDto>>> GetPowerPlatformFlows(string environmentId, CancellationToken ct)
+    {
+        var flows = await _powerPlatformFlowService.GetFlowsAsync(
+            GetRequiredToken("X-PowerPlatform-Access-Token"), environmentId, ct);
+        return Ok(flows);
     }
 
     /// <summary>Importe un flux Power Automate exporté au format JSON (collé ou envoyé en texte).</summary>
@@ -86,6 +112,50 @@ public class FlowsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Importe la définition d'un flux cloud existant depuis Power Platform, sans
+    /// téléchargement manuel d'un fichier JSON. Les deux jetons délégués ne sont
+    /// utilisés que pendant la requête, puis immédiatement oubliés.
+    /// </summary>
+    [HttpPost("import/power-platform")]
+    public async Task<ActionResult<FlowImportResultDto>> ImportFromPowerPlatform(
+        PowerPlatformFlowImportRequestDto request, CancellationToken ct)
+    {
+        var definition = await _powerPlatformFlowService.GetFlowDefinitionAsync(
+            GetRequiredToken("X-PowerPlatform-Access-Token"),
+            GetRequiredToken("X-Dataverse-Access-Token"),
+            request.EnvironmentId,
+            request.WorkflowId,
+            ct);
+
+        var validation = _validationService.Validate(definition.DefinitionJson);
+        if (!validation.IsValid)
+            return UnprocessableEntity(new { message = validation.Error });
+
+        var parsed = _parserService.Parse(definition.DefinitionJson);
+        var flowImport = new FlowImport
+        {
+            Name = string.IsNullOrWhiteSpace(parsed.FlowName) || parsed.FlowName == "Flux sans nom"
+                ? definition.DisplayName
+                : parsed.FlowName,
+            RawJson = definition.DefinitionJson,
+            IsValid = true,
+            ActionsCount = parsed.Nodes.Count,
+            ImportedByUserId = User.GetUserId(),
+            Source = FlowImportSource.PowerPlatform,
+            PowerPlatformEnvironmentId = definition.EnvironmentId,
+            PowerPlatformTenantId = definition.TenantId,
+            PowerPlatformWorkflowId = request.WorkflowId
+        };
+
+        _db.FlowImports.Add(flowImport);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new FlowImportResultDto(
+            flowImport.Id, flowImport.Name, flowImport.IsValid, flowImport.ValidationError,
+            flowImport.ActionsCount, flowImport.ImportedAtUtc));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<FlowImportResultDto>> GetById(Guid id, CancellationToken ct)
     {
@@ -96,5 +166,14 @@ public class FlowsController : ControllerBase
             return Forbid();
 
         return Ok(new FlowImportResultDto(flow.Id, flow.Name, flow.IsValid, flow.ValidationError, flow.ActionsCount, flow.ImportedAtUtc));
+    }
+
+    private string GetRequiredToken(string headerName)
+    {
+        var token = Request.Headers[headerName].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(token))
+            throw new BusinessException("Connectez-vous à Microsoft 365 pour accéder aux flux Power Automate.");
+
+        return token;
     }
 }

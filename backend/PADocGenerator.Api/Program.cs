@@ -37,6 +37,10 @@ builder.Services.AddSingleton<WordDocumentationRenderer>();                     
 builder.Services.AddScoped<IExportService, ExportService>();                       // Module d'export (façade)
 builder.Services.AddScoped<IAuthService, AuthService>();                           // Module de gestion des rôles (auth)
 builder.Services.AddScoped<IDashboardService, DashboardService>();                 // Module de tableau de bord
+builder.Services.AddHttpClient<IPowerPlatformFlowService, PowerPlatformFlowService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+}); // Import délégué depuis Microsoft 365 / Power Platform
 
 // ---------------------------------------------------------------------------
 // Authentification JWT + rôles (administrateur / utilisateur)

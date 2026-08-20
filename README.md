@@ -1,7 +1,8 @@
 # Générateur de documentation IA pour Power Automate
 
-Plateforme permettant d'importer un flux Microsoft Power Automate exporté au
-format JSON et de générer automatiquement, via Azure OpenAI, une documentation
+Plateforme permettant de sélectionner un flux Microsoft Power Automate auquel
+l'utilisateur a accès dans son environnement Power Platform, ou d'importer un
+flux exporté au format JSON, puis de générer automatiquement, via Azure OpenAI, une documentation
 claire, structurée et exploitable (résumé fonctionnel, description des étapes,
 dépendances, étapes importantes), modifiable avant enregistrement, versionnée,
 recherchable et exportable en PDF/Word.
@@ -42,6 +43,7 @@ cahier des charges (section 6) :
 | Dossier / fichier                                | Module (cahier des charges §6)             |
 |----------------------------------------------------|---------------------------------------------|
 | `Controllers/FlowsController.cs`                    | Module d'importation                        |
+| `Services/PowerPlatformFlowService.cs`               | Connexion déléguée Microsoft 365 / Power Platform |
 | `Services/FlowParserService.cs`                     | Module de lecture et préparation des données|
 | `Services/PromptBuilderService.cs` + `AzureOpenAiDocumentationService.cs` | Module de génération de documentation |
 | `Services/DocumentFormattingService.cs`             | Module de mise en forme                     |
@@ -82,6 +84,37 @@ npm install
 cp .env.example .env   # ajuster VITE_API_BASE_URL si besoin
 npm run dev
 ```
+
+### Connexion Microsoft 365 / Power Platform (facultatif mais recommandé)
+
+L'import direct ne requiert **aucun secret Microsoft stocké dans le projet**.
+Il utilise OAuth 2.0 Authorization Code avec PKCE dans le navigateur ; les
+jetons délégués sont gardés uniquement en mémoire le temps de la session et le
+backend les transmet aux API Microsoft sans les enregistrer.
+
+1. Dans Microsoft Entra ID, créez une inscription d'application de type
+   **Single-page application (SPA)**, idéalement restreinte au tenant de
+   l'organisation.
+2. Ajoutez `http://localhost:5173` (et l'URL de production) aux URI de
+   redirection SPA, puis accordez les permissions déléguées nécessaires au
+   service Power Platform/Dataverse selon la politique du tenant. Le consentement
+   administrateur peut être requis.
+3. Copiez `frontend/.env.example` vers `frontend/.env` et renseignez au minimum
+   `VITE_ENTRA_CLIENT_ID`; définissez `VITE_ENTRA_TENANT_ID` avec l'ID du tenant
+   en production plutôt que `organizations`.
+4. L'utilisateur ouvre **Importer un flux**, se connecte à Microsoft 365,
+   choisit son environnement, puis son flux. Au moment de l'import, il autorise
+   également l'accès délégué à la base Dataverse de l'environnement pour lire la
+   définition du flux.
+
+L'implémentation s'appuie sur l'API Power Platform documentée pour la liste des
+[environnements accessibles](https://learn.microsoft.com/en-us/rest/api/power-platform/environmentmanagement/environments/list-environments-for-user)
+et des [flux cloud](https://learn.microsoft.com/en-us/rest/api/power-platform/powerautomate/cloud-flows/list-cloud-flows), puis sur l'API Dataverse pour lire
+`workflow.clientdata`, qui contient la définition et les références de connexion
+du flux. Microsoft indique que la gestion programmatique des flux est centrée
+sur les flux Dataverse/solutions : certains flux « Mes flux » ou environnements
+sans Dataverse peuvent donc rester indisponibles et le JSON manuel reste prévu
+comme solution de repli.
 
 ### Tests
 
@@ -138,6 +171,7 @@ Recommandations complémentaires :
 - [x] Backend : entités, DTOs, tous les services/modules, contrôleurs, auth JWT + rôles
 - [x] Backend : tests de logique métier (parsing/validation/mise en forme) validés
 - [x] Frontend : authentification, tableau de bord, import, génération, consultation/édition, recherche, administration
+- [x] Import Microsoft 365 / Power Platform : OAuth PKCE, choix d'environnement et de flux, lecture déléguée de la définition Dataverse
 - [ ] Configuration réelle Azure OpenAI + PostgreSQL (secrets à fournir par l'entreprise)
 - [ ] Migration EF Core initiale (`dotnet ef migrations add InitialCreate`)
 - [ ] Déploiement Azure DevOps (repo distant, pipeline branché sur un environnement réel)

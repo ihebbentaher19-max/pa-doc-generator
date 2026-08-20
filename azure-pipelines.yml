@@ -95,11 +95,18 @@ stages:
       workingDirectory: frontend
       displayName: Lint
 
-    - script: | 
-        echo "VITE_API_BASE_URL=$(VITE_API_BASE_URL)" > .env.production
-        npm run build
+    # Les variables VITE_* sont incorporées au bundle React à la compilation.
+    # VITE_ENTRA_CLIENT_ID et VITE_ENTRA_TENANT_ID sont des identifiants publics,
+    # mais doivent rester configurés dans les variables du pipeline pour séparer
+    # proprement les environnements. Ne jamais y placer de client secret.
+    - script: npm run build
       workingDirectory: frontend
       displayName: Build React
+      env:
+        VITE_API_BASE_URL: $(VITE_API_BASE_URL)
+        VITE_ENTRA_CLIENT_ID: $(VITE_ENTRA_CLIENT_ID)
+        VITE_ENTRA_TENANT_ID: $(VITE_ENTRA_TENANT_ID)
+        VITE_ENTRA_REDIRECT_URI: $(VITE_ENTRA_REDIRECT_URI)
 
     - publish: frontend/dist
       artifact: frontend-dist

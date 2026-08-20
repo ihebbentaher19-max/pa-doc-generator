@@ -126,10 +126,10 @@ Check("Send_an_email n'a pas de dependance (premiere action)", sendEmailAction?.
     $"RunsAfter='{sendEmailAction?.RunsAfter}'");
 
 var condition = parsed.Conditions.FirstOrDefault();
-Check("Condition a une branche vrai avec Approve_request",
-    condition is not null && condition.ActionsIfTrue.Contains("Approve_request"));
-Check("Condition a une branche faux avec Reject_request",
-    condition is not null && condition.ActionsIfFalse.Contains("Reject_request"));
+Check("Condition a une branche vrai avec Approve request",
+    condition is not null && condition.ActionsIfTrue.Contains("Approve request"));
+Check("Condition a une branche faux avec Reject request",
+    condition is not null && condition.ActionsIfFalse.Contains("Reject request"));
 
 // Cas limite : flux avec uniquement un trigger, aucune action
 const string triggerOnlyFlow = """
