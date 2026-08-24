@@ -21,6 +21,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ---------------------------------------------------------------------------
 builder.Services.Configure<AzureOpenAiOptions>(builder.Configuration.GetSection(AzureOpenAiOptions.SectionName));
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<MicrosoftEntraOptions>(builder.Configuration.GetSection("MicrosoftEntra"));
 
 // ---------------------------------------------------------------------------
 // Injection de dépendances - un service par module du cahier des charges (§6)

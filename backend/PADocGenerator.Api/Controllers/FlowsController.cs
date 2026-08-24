@@ -23,25 +23,30 @@ public class FlowsController : ControllerBase
     private readonly AppDbContext _db;
 
     public FlowsController(
-        IFlowValidationService validationService,
-        IFlowParserService parserService,
-        IPowerPlatformFlowService powerPlatformFlowService,
-        AppDbContext db)
-    {
-        _validationService = validationService;
-        _parserService = parserService;
-        _powerPlatformFlowService = powerPlatformFlowService;
-        _db = db;
-    }
+    IFlowValidationService validationService,
+    IFlowParserService parserService,
+    IPowerPlatformFlowService powerPlatformFlowService,
+    AppDbContext db)
+{
+    _validationService = validationService;
+    _parserService = parserService;
+    _powerPlatformFlowService = powerPlatformFlowService;
+    _db = db;
+}
 
     /// <summary>
     /// Retourne les environnements Power Platform que le compte Microsoft connecté
     /// peut utiliser. Requiert le jeton délégué transmis temporairement par le SPA.
     /// </summary>
     [HttpGet("power-platform/environments")]
-    public async Task<ActionResult<IReadOnlyList<PowerPlatformEnvironmentDto>>> GetPowerPlatformEnvironments(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<PowerPlatformEnvironmentDto>>> GetPowerPlatformEnvironments(
+        CancellationToken ct)
     {
-        var environments = await _powerPlatformFlowService.GetEnvironmentsAsync(GetRequiredToken("X-PowerPlatform-Access-Token"), ct);
+        var accessToken = GetRequiredToken("X-PowerPlatform-Access-Token");
+
+        var environments = await _powerPlatformFlowService
+            .GetEnvironmentsAsync(accessToken, ct);
+
         return Ok(environments);
     }
 
@@ -49,8 +54,12 @@ public class FlowsController : ControllerBase
     [HttpGet("power-platform/environments/{environmentId}/flows")]
     public async Task<ActionResult<IReadOnlyList<PowerPlatformFlowDto>>> GetPowerPlatformFlows(string environmentId, CancellationToken ct)
     {
+        var accessToken = GetRequiredToken("X-PowerPlatform-Access-Token");
+
         var flows = await _powerPlatformFlowService.GetFlowsAsync(
-            GetRequiredToken("X-PowerPlatform-Access-Token"), environmentId, ct);
+            accessToken,
+            environmentId,
+            ct);
         return Ok(flows);
     }
 

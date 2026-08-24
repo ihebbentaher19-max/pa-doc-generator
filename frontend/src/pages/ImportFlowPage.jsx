@@ -11,14 +11,12 @@ import {
   importFlow,
   importPowerPlatformFlow,
 } from "../services/flowsService";
-import {
-  getDataverseAccessToken,
-  getPowerPlatformAccessToken,
-  isMicrosoftIdentityConfigured,
-} from "../services/microsoftIdentityService";
 import { generateDocumentation } from "../services/documentationService";
 import { getApiErrorMessage } from "../services/api";
-
+import {
+  loginToMicrosoft,
+  getMicrosoftConnectionStatus,
+} from "../services/microsoftIdentityService";
 // Étapes affichées pendant l'appel à /documentation/generate : le backend
 // exécute ce pipeline en une seule requête, on anime la progression pour que
 // l'utilisateur comprenne ce qui se passe (cf. section 6 du cahier des charges).
@@ -40,16 +38,17 @@ export default function ImportFlowPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
 
-  const [powerPlatformToken, setPowerPlatformToken] = useState(null);
+  const [isMicrosoftConnected, setIsMicrosoftConnected] = useState(false);
   const [environments, setEnvironments] = useState([]);
   const [selectedEnvironmentId, setSelectedEnvironmentId] = useState("");
   const [flows, setFlows] = useState([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
+
   const [isConnectingMicrosoft, setIsConnectingMicrosoft] = useState(false);
   const [isLoadingFlows, setIsLoadingFlows] = useState(false);
   const [isImportingPowerPlatform, setIsImportingPowerPlatform] = useState(false);
   const [powerPlatformError, setPowerPlatformError] = useState(null);
-
+  const [selectedEnvironment, setSelectedEnvironment] = useState(null);
   const readFile = useCallback((file) => {
     setFileName(file.name);
     setImportResult(null);
@@ -85,69 +84,124 @@ export default function ImportFlowPage() {
     setIsConnectingMicrosoft(true);
     setPowerPlatformError(null);
     setImportResult(null);
+
     try {
-      const token = await getPowerPlatformAccessToken();
-      const availableEnvironments = await getPowerPlatformEnvironments(token);
-      setPowerPlatformToken(token);
+      const loginResult = await loginToMicrosoft();
+
+      if (!loginResult?.connected) {
+        throw new Error(
+          "La connexion Microsoft 365 n'a pas pu être établie."
+        );
+      }
+
+      const availableEnvironments =
+        await getPowerPlatformEnvironments();
+
+      setIsMicrosoftConnected(true);
       setEnvironments(availableEnvironments);
       setSelectedEnvironmentId("");
       setFlows([]);
       setSelectedWorkflowId("");
+
       if (!availableEnvironments.length) {
-        setPowerPlatformError("Aucun environnement Power Platform accessible n'a été trouvé pour ce compte.");
+        setPowerPlatformError(
+          "Aucun environnement Power Platform accessible n'a été trouvé pour ce compte."
+        );
       }
     } catch (err) {
-      setPowerPlatformError(getApiErrorMessage(err, "Impossible de se connecter à Microsoft 365."));
+      console.error("Connexion Microsoft :", err);
+
+      setIsMicrosoftConnected(false);
+
+      setPowerPlatformError(
+        getApiErrorMessage(
+          err,
+          "Impossible de se connecter à Microsoft 365 ou de charger les environnements."
+        )
+      );
     } finally {
       setIsConnectingMicrosoft(false);
     }
   }
 
   async function handleEnvironmentChange(environmentId) {
-    setSelectedEnvironmentId(environmentId);
-    setSelectedWorkflowId("");
-    setFlows([]);
-    setPowerPlatformError(null);
-    if (!environmentId || !powerPlatformToken) return;
+  setSelectedEnvironmentId(environmentId);
+  setSelectedWorkflowId("");
+  setFlows([]);
+  setPowerPlatformError(null);
 
-    setIsLoadingFlows(true);
-    try {
-      const availableFlows = await getPowerPlatformFlows(environmentId, powerPlatformToken);
-      setFlows(availableFlows);
-      if (!availableFlows.length) {
-        setPowerPlatformError("Aucun flux cloud accessible n'a été trouvé dans cet environnement.");
-      }
-    } catch (err) {
-      setPowerPlatformError(getApiErrorMessage(err, "Impossible de charger les flux de cet environnement."));
-    } finally {
-      setIsLoadingFlows(false);
+  const environment =
+    environments.find(
+      (item) => item.id === environmentId
+    ) || null;
+
+  setSelectedEnvironment(environment);
+
+  if (!environmentId || !isMicrosoftConnected) return;
+
+  setIsLoadingFlows(true);
+
+  try {
+    const availableFlows =
+      await getPowerPlatformFlows(environmentId);
+
+    setFlows(availableFlows);
+
+    if (!availableFlows.length) {
+      setPowerPlatformError(
+        "Aucun flux cloud accessible n'a été trouvé dans cet environnement."
+      );
     }
+  } catch (err) {
+    setPowerPlatformError(
+      getApiErrorMessage(
+        err,
+        "Impossible de charger les flux de cet environnement."
+      )
+    );
+  } finally {
+    setIsLoadingFlows(false);
   }
+}
 
   async function handlePowerPlatformImport() {
-    const environment = environments.find((item) => item.id === selectedEnvironmentId);
-    if (!environment || !selectedWorkflowId || !powerPlatformToken) return;
-
-    if (!environment.dataverseUrl) {
-      setPowerPlatformError("Cet environnement n'a pas de base Dataverse. La définition de ses flux ne peut pas être lue.");
+    if (
+      !selectedEnvironmentId ||
+      !selectedWorkflowId ||
+      !isMicrosoftConnected
+    ) {
       return;
     }
 
     setIsImportingPowerPlatform(true);
     setPowerPlatformError(null);
     setImportResult(null);
+
     try {
-      // Le second jeton est limité à la base Dataverse de l'environnement choisi.
-      const dataverseAccessToken = await getDataverseAccessToken(environment.dataverseUrl);
+      const selectedEnvironment = environments.find(
+        (environment) => environment.id === selectedEnvironmentId
+      );
+
+      if (!selectedEnvironment) {
+        setPowerPlatformError(
+          "L'environnement Power Platform sélectionné est introuvable."
+        );
+        return;
+      }
       const result = await importPowerPlatformFlow({
         environmentId: selectedEnvironmentId,
         workflowId: selectedWorkflowId,
-        powerPlatformAccessToken: powerPlatformToken,
-        dataverseAccessToken,
-      });
-      setImportResult(result);
+        dataverseUrl: selectedEnvironment.url,
+    });
+
+    setImportResult(result);
     } catch (err) {
-      setPowerPlatformError(getApiErrorMessage(err, "L'import du flux Power Platform a échoué."));
+      setPowerPlatformError(
+        getApiErrorMessage(
+          err,
+          "L'import du flux Power Platform a échoué."
+        )
+      );
     } finally {
       setIsImportingPowerPlatform(false);
     }
@@ -193,15 +247,22 @@ export default function ImportFlowPage() {
         <p style={{ fontSize: 13.5, color: "var(--color-ink-soft)", marginBottom: "var(--space-4)" }}>
           Connectez votre compte Microsoft, choisissez l'environnement puis le flux cloud à documenter. Seuls les flux auxquels votre compte a accès sont affichés.
         </p>
-
-        {!isMicrosoftIdentityConfigured() ? (
-          <Callout tone="info">
-            La connexion Microsoft doit être configurée avec l'identifiant d'une application Microsoft Entra ID dans <code>VITE_ENTRA_CLIENT_ID</code>.
-          </Callout>
-        ) : (
           <>
-            <Button onClick={handleMicrosoftConnect} disabled={isConnectingMicrosoft} variant="secondary">
-              {isConnectingMicrosoft ? "Connexion Microsoft en cours…" : <><LogIn size={16} /> {powerPlatformToken ? "Actualiser les environnements" : "Se connecter à Microsoft 365"}</>}
+            <Button
+              onClick={handleMicrosoftConnect}
+              disabled={isConnectingMicrosoft}
+              variant="secondary"
+            >
+              {isConnectingMicrosoft ? (
+                "Connexion Microsoft en cours…"
+              ) : (
+                <>
+                  <LogIn size={16} />
+                  {isMicrosoftConnected
+                    ? "Actualiser les environnements"
+                    : "Se connecter à Microsoft 365"}
+                </>
+              )}
             </Button>
 
             {environments.length > 0 && (
@@ -240,7 +301,6 @@ export default function ImportFlowPage() {
               </div>
             )}
           </>
-        )}
 
         {powerPlatformError && <div style={{ marginTop: "var(--space-4)" }}><Callout tone="error">{powerPlatformError}</Callout></div>}
       </div>

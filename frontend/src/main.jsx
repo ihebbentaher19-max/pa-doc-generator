@@ -1,13 +1,28 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.jsx";
-import "./styles/global.css";
-import { handleMicrosoftPopupCallback } from "./services/microsoftIdentityService.js";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { MsalProvider } from "@azure/msal-react";
 
-if (!handleMicrosoftPopupCallback()) {
-  createRoot(document.getElementById("root")).render(
-    <StrictMode>
-      <App />
-    </StrictMode>
+import App from "./App";
+import "./styles/global.css";
+import { msalInstance } from "./services/msalInstance";
+
+async function bootstrap() {
+  await msalInstance.initialize();
+
+  await msalInstance.handleRedirectPromise();
+
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    <React.StrictMode>
+      <MsalProvider instance={msalInstance}>
+        <App />
+      </MsalProvider>
+    </React.StrictMode>
   );
 }
+
+bootstrap().catch((error) => {
+  console.error(
+    "Erreur d'initialisation Microsoft Authentication :",
+    error
+  );
+});
