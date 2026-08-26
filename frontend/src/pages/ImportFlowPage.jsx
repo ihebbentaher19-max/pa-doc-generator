@@ -125,44 +125,44 @@ export default function ImportFlowPage() {
   }
 
   async function handleEnvironmentChange(environmentId) {
-  setSelectedEnvironmentId(environmentId);
-  setSelectedWorkflowId("");
-  setFlows([]);
-  setPowerPlatformError(null);
+    setSelectedEnvironmentId(environmentId);
+    setSelectedWorkflowId("");
+    setFlows([]);
+    setPowerPlatformError(null);
 
-  const environment =
-    environments.find(
-      (item) => item.id === environmentId
-    ) || null;
+    const environment =
+      environments.find(
+        (item) => item.id === environmentId
+      ) || null;
 
-  setSelectedEnvironment(environment);
+    setSelectedEnvironment(environment);
 
-  if (!environmentId || !isMicrosoftConnected) return;
+    if (!environmentId || !isMicrosoftConnected) return;
 
-  setIsLoadingFlows(true);
+    setIsLoadingFlows(true);
 
-  try {
-    const availableFlows =
-      await getPowerPlatformFlows(environmentId);
+    try {
+      const availableFlows =
+        await getPowerPlatformFlows(environmentId);
 
-    setFlows(availableFlows);
+      setFlows(availableFlows);
 
-    if (!availableFlows.length) {
+      if (!availableFlows.length) {
+        setPowerPlatformError(
+          "Aucun flux cloud accessible n'a été trouvé dans cet environnement."
+        );
+      }
+    } catch (err) {
       setPowerPlatformError(
-        "Aucun flux cloud accessible n'a été trouvé dans cet environnement."
+        getApiErrorMessage(
+          err,
+          "Impossible de charger les flux de cet environnement."
+        )
       );
+    } finally {
+      setIsLoadingFlows(false);
     }
-  } catch (err) {
-    setPowerPlatformError(
-      getApiErrorMessage(
-        err,
-        "Impossible de charger les flux de cet environnement."
-      )
-    );
-  } finally {
-    setIsLoadingFlows(false);
   }
-}
 
   async function handlePowerPlatformImport() {
     if (
@@ -179,22 +179,23 @@ export default function ImportFlowPage() {
 
     try {
       const selectedEnvironment = environments.find(
-        (environment) => environment.id === selectedEnvironmentId
+        (environment) =>
+          environment.id === selectedEnvironmentId
       );
 
       if (!selectedEnvironment) {
-        setPowerPlatformError(
+        throw new Error(
           "L'environnement Power Platform sélectionné est introuvable."
         );
-        return;
       }
+
       const result = await importPowerPlatformFlow({
         environmentId: selectedEnvironmentId,
         workflowId: selectedWorkflowId,
         dataverseUrl: selectedEnvironment.url,
-    });
+      });
 
-    setImportResult(result);
+      setImportResult(result);
     } catch (err) {
       setPowerPlatformError(
         getApiErrorMessage(
