@@ -307,7 +307,7 @@ export default function ImportFlowPage() {
       </div>
 
       <div className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }}>
-        <p style={{ fontWeight: 600, marginBottom: "var(--space-3)" }}>Ou importer un fichier JSON</p>
+        <p style={{ fontWeight: 600, marginBottom: "var(--space-3)" }}>Ou importer le fichier 'definition.json'</p>
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
           onDragLeave={() => setIsDraggingOver(false)}
@@ -332,7 +332,7 @@ export default function ImportFlowPage() {
           />
           <UploadCloud size={26} color="var(--color-primary)" style={{ marginBottom: 10 }} />
           <p style={{ fontWeight: 600, fontSize: 14 }}>
-            {fileName ? fileName : "Glissez-déposez un fichier .json, ou cliquez pour parcourir"}
+            {fileName ? fileName : "Glissez-déposez le fichier 'definition.json', ou cliquez pour parcourir"}
           </p>
           <p style={{ fontSize: 12.5, color: "var(--color-muted)", marginTop: 4 }}>
             Export standard d'un flux Microsoft Power Automate (propriétés « actions » / « triggers »)
