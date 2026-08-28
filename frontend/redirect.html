@@ -1,21 +1,28 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Authentification...</title>
-</head>
-<body>
-    <script src="https://alcdn.msauth.net/browser/3.27.0/js/msal-browser.min.js"></script>
-    <script>
-        // Script minimaliste qui capture la réponse OAuth et ferme la pop-up
-        const pca = new msal.PublicClientApplication({
-            auth: {
-                clientId: "placeholder", // N'importe quel texte ou votre Client ID
-            }
-        });
-        pca.initialize().then(() => {
-            pca.handleRedirectPromise().catch(console.error);
-        });
+  </head>
+  <body>
+    <script type="module">
+      // Page dédiée à laquelle Entra ID redirige les popups MSAL
+      // (loginPopup / acquireTokenPopup). Elle ne charge PAS l'application
+      // React : son seul rôle est de relayer la réponse d'authentification
+      // (le code dans le fragment d'URL #code=...) à la fenêtre principale,
+      // via le pont officiel de @azure/msal-browser.
+      //
+      // Important : cet import vient du même package/version que celui utilisé
+      // par le reste de l'app (voir package.json). Un script MSAL chargé
+      // depuis un CDN avec une version différente utilise un protocole de
+      // relais différent (BroadcastChannel avec un format de message
+      // différent) et ne sera jamais reçu par la fenêtre principale : le
+      // popup restera bloqué sur "#code=...".
+      import { broadcastResponseToMainFrame } from "@azure/msal-browser/redirect-bridge";
+
+      broadcastResponseToMainFrame().catch((error) => {
+        console.error("Erreur lors du relais de la réponse MSAL :", error);
+      });
     </script>
-</body>
+  </body>
 </html>

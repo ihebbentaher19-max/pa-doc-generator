@@ -6,7 +6,16 @@ export const msalConfig = {
     authority: `https://login.microsoftonline.com/${
       import.meta.env.VITE_ENTRA_TENANT_ID
     }`,
-    redirectUri:window.location.origin,
+    // Voir frontend/redirect.html : une page dédiée, hors de l'app React,
+    // qui relaie la réponse d'authentification à la fenêtre principale.
+    // Nécessaire avec @azure/msal-browser v5 pour loginPopup/acquireTokenPopup :
+    // si redirectUri pointe vers l'app elle-même ("/"), React se monte à
+    // l'intérieur du popup, crée sa propre instance MSAL et consomme le code
+    // avant que la fenêtre principale ait pu le lire (le popup reste alors
+    // bloqué sur une URL "#code=...").
+    redirectUri:
+      import.meta.env.VITE_ENTRA_REDIRECT_URI ||
+      `${window.location.origin}/redirect.html`,
     postLogoutRedirectUri: window.location.origin,
     navigateToLoginRequestUrl: false,
   },
