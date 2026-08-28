@@ -36,10 +36,10 @@ public sealed class PowerPlatformFlowService : IPowerPlatformFlowService
         return values
             .Select(element => new PowerPlatformEnvironmentDto(
                 ReadString(element, "id") ?? string.Empty,
-                ReadString(element, "displayName") ?? ReadString(element, "name") ?? "Environnement sans nom",
+                ReadString(GetProperties(element), "displayName") ?? ReadString(element, "displayName") ?? ReadString(element, "name") ?? "Environnement sans nom",
                 ReadString(element, "type"),
                 ReadString(element, "state"),
-                ReadString(element, "url"),
+                ReadDataverseUrl(element),
                 ReadString(element, "tenantId")))
             .Where(environment => !string.IsNullOrWhiteSpace(environment.Id))
             .OrderBy(environment => environment.DisplayName, StringComparer.CurrentCultureIgnoreCase)
@@ -167,7 +167,9 @@ public sealed class PowerPlatformFlowService : IPowerPlatformFlowService
             return null;
 
         return uri.Scheme == Uri.UriSchemeHttps &&
-               string.Equals(uri.Host, "api.powerplatform.com", StringComparison.OrdinalIgnoreCase)
+               (string.Equals(uri.Host, "api.powerplatform.com", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(uri.Host, "api.bap.microsoft.com", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(uri.Host, "api.flow.microsoft.com", StringComparison.OrdinalIgnoreCase))
             ? uri
             : null;
     }
@@ -275,4 +277,19 @@ public sealed class PowerPlatformFlowService : IPowerPlatformFlowService
             ? "Power Platform n'a pas pu traiter la demande. Réessayez dans quelques instants."
             : $"Power Platform a refusé la demande : {providerMessage}"
     };
+    private static string? ReadDataverseUrl(JsonElement element)
+    {
+        var properties = GetProperties(element);
+
+        if (properties.ValueKind == JsonValueKind.Object &&
+            properties.TryGetProperty("linkedEnvironmentMetadata", out var metadata) &&
+            metadata.ValueKind == JsonValueKind.Object &&
+            metadata.TryGetProperty("instanceUrl", out var instanceUrl) &&
+            instanceUrl.ValueKind == JsonValueKind.String)
+        {
+            return instanceUrl.GetString();
+        }
+
+        return ReadString(properties, "runtimeUrl") ?? ReadString(properties, "instanceUrl") ?? ReadString(element, "url");
+    }
 }

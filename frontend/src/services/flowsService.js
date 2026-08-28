@@ -5,7 +5,6 @@ import {
   getDataverseAccessToken,
 } from "./microsoftIdentityService";
 
-/** Module d'importation. */
 export async function importFlow(fileName, jsonContent) {
   const { data } = await apiClient.post("/flows/import", {
     fileName,
@@ -21,12 +20,9 @@ export async function getFlowImport(id) {
   return data;
 }
 
-/**
- * Récupère les environnements Power Platform accessibles
- * à l'utilisateur connecté.
- */
 export async function getPowerPlatformEnvironments() {
-  const accessToken = await getPowerPlatformAccessToken();
+  const accessToken =
+    await getPowerPlatformAccessToken();
 
   const { data } = await apiClient.get(
     "/flows/power-platform/environments",
@@ -40,12 +36,9 @@ export async function getPowerPlatformEnvironments() {
   return data;
 }
 
-/**
- * Récupère les flux Power Automate accessibles
- * dans l'environnement sélectionné.
- */
 export async function getPowerPlatformFlows(environmentId) {
-  const accessToken = await getPowerPlatformAccessToken();
+  const accessToken =
+    await getPowerPlatformAccessToken();
 
   const { data } = await apiClient.get(
     `/flows/power-platform/environments/${encodeURIComponent(
@@ -61,9 +54,6 @@ export async function getPowerPlatformFlows(environmentId) {
   return data;
 }
 
-/**
- * Importe la définition du flux sélectionné.
- */
 export async function importPowerPlatformFlow({
   environmentId,
   workflowId,
@@ -83,8 +73,11 @@ export async function importPowerPlatformFlow({
     },
     {
       headers: {
-        "X-PowerPlatform-Access-Token": powerPlatformToken,
-        "X-Dataverse-Access-Token": dataverseToken,
+        "X-PowerPlatform-Access-Token":
+          powerPlatformToken,
+
+        "X-Dataverse-Access-Token":
+          dataverseToken,
       },
     }
   );

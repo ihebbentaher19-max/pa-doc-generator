@@ -1,16 +1,22 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { MsalProvider } from "@azure/msal-react";
-
+import { msalInstance } from "./services/microsoftIdentityService";
 import App from "./App";
 import "./styles/global.css";
-import { msalInstance } from "./services/msalInstance";
 
-async function bootstrap() {
+async function startApp() {
+  // 1. Initialiser l'instance unique MSAL
   await msalInstance.initialize();
 
-  await msalInstance.handleRedirectPromise();
+  // 2. Traiter la réponse de redirection (ferme la pop-up automatiquement)
+  try {
+    await msalInstance.handleRedirectPromise();
+  } catch (error) {
+    console.error("Erreur de redirection MSAL :", error);
+  }
 
+  // 3. Monter l'application React
   ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
       <MsalProvider instance={msalInstance}>
@@ -20,9 +26,4 @@ async function bootstrap() {
   );
 }
 
-bootstrap().catch((error) => {
-  console.error(
-    "Erreur d'initialisation Microsoft Authentication :",
-    error
-  );
-});
+startApp();

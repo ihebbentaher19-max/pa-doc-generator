@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Authentification...</title>
+</head>
+<body>
+    <script src="https://alcdn.msauth.net/browser/3.27.0/js/msal-browser.min.js"></script>
+    <script>
+        // Script minimaliste qui capture la réponse OAuth et ferme la pop-up
+        const pca = new msal.PublicClientApplication({
+            auth: {
+                clientId: "placeholder", // N'importe quel texte ou votre Client ID
+            }
+        });
+        pca.initialize().then(() => {
+            pca.handleRedirectPromise().catch(console.error);
+        });
+    </script>
+</body>
+</html>

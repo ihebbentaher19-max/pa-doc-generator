@@ -1,0 +1,128 @@
+diff --git a/frontend/.env.example b/frontend/.env.example
+index 338a1d1..4771983 100644
+--- a/frontend/.env.example
++++ b/frontend/.env.example
+@@ -6,3 +6,9 @@ VITE_ENTRA_CLIENT_ID=
+ VITE_ENTRA_TENANT_ID=organizations
+ # Facultatif : par défaut, l'origine de l'application est utilisée.
+ # VITE_ENTRA_REDIRECT_URI=http://localhost:5173
++# Facultatif : URI de redirection dédiée aux popups MSAL (loginPopup /
++# acquireTokenPopup). Par défaut : {origine}/auth/popup.html (page statique
++# vide, voir frontend/public/auth/popup.html). Doit être déclarée dans
++# l'App Registration Entra ID (plateforme "Single-page application"), en plus
++# de VITE_ENTRA_REDIRECT_URI.
++# VITE_ENTRA_POPUP_REDIRECT_URI=http://localhost:5173/auth/popup.html
+diff --git a/frontend/public/auth/popup.html b/frontend/public/auth/popup.html
+new file mode 100644
+index 0000000..0ba4f41
+--- /dev/null
++++ b/frontend/public/auth/popup.html
+@@ -0,0 +1,25 @@
++<!DOCTYPE html>
++<html lang="fr">
++  <head>
++    <meta charset="UTF-8" />
++    <title>Connexion Microsoft…</title>
++  </head>
++  <body>
++    <!--
++      Cette page est volontairement vide et ne charge pas le bundle React.
++
++      Rôle : c'est l'URI de redirection utilisée UNIQUEMENT par les popups
++      MSAL (loginPopup / acquireTokenPopup). Microsoft Entra ID redirige le
++      popup ici avec le code d'autorisation dans le fragment d'URL (#code=...).
++
++      MSAL, depuis la fenêtre principale qui a ouvert le popup, surveille
++      l'URL de cette fenêtre (même origine) et récupère lui-même ce code pour
++      fermer le popup. Si cette page chargeait l'application complète
++      (comme c'était le cas quand l'URI de redirection pointait vers "/"),
++      le bootstrap React s'exécutait à l'intérieur du popup, créait sa propre
++      instance MSAL et consommait/effaçait le code avant que la fenêtre
++      principale ait pu le lire : le popup restait alors bloqué sur une page
++      blanche, ou affichait l'application elle-même au lieu de se fermer.
++    -->
++  </body>
++</html>
+diff --git a/frontend/src/config/authConfig.js b/frontend/src/config/authConfig.js
+index 430a298..dffffe9 100644
+--- a/frontend/src/config/authConfig.js
++++ b/frontend/src/config/authConfig.js
+@@ -44,4 +44,26 @@ export const loginRequest = {
+   scopes: [
+     "https://api.powerplatform.com/PowerAutomate.Flows.Read",
+   ],
+-};
+\ No newline at end of file
++};
++
++/**
++ * URI de redirection utilisée UNIQUEMENT pour les flux popup (loginPopup /
++ * acquireTokenPopup). Elle pointe vers une page statique vide
++ * (frontend/public/auth/popup.html) plutôt que vers la racine de l'application.
++ *
++ * Pourquoi : avec l'URI de redirection par défaut (racine "/"), Entra ID
++ * redirige le popup vers l'application complète. Le bootstrap React s'exécute
++ * alors À L'INTÉRIEUR du popup, crée sa propre instance MSAL et consomme le
++ * code d'autorisation avant que la fenêtre principale (celle qui a ouvert le
++ * popup) ait pu le lire elle-même. Résultat : le popup reste bloqué sur une
++ * page blanche avec "#code=..." dans l'URL, ou affiche l'application elle-même
++ * au lieu de se fermer. Une page vide élimine cette course entre les deux
++ * instances MSAL.
++ *
++ * Cette URI doit être ajoutée aux "Redirect URIs" de type
++ * "Single-page application" de l'App Registration Entra ID, en plus de
++ * l'origine de l'application.
++ */
++export const popupRedirectUri =
++  import.meta.env.VITE_ENTRA_POPUP_REDIRECT_URI ||
++  `${window.location.origin}/auth/popup.html`;
+\ No newline at end of file
+diff --git a/frontend/src/services/microsoftIdentityService.js b/frontend/src/services/microsoftIdentityService.js
+index e9d7574..137605f 100644
+--- a/frontend/src/services/microsoftIdentityService.js
++++ b/frontend/src/services/microsoftIdentityService.js
+@@ -3,7 +3,7 @@ import {
+ } from "@azure/msal-browser";
+ 
+ import { msalInstance } from "./msalInstance";
+-import { loginRequest } from "../config/authConfig";
++import { loginRequest, popupRedirectUri } from "../config/authConfig";
+ 
+ export async function loginToMicrosoft() {
+   try {
+@@ -18,7 +18,10 @@ export async function loginToMicrosoft() {
+       };
+     }
+ 
+-    const result = await msalInstance.loginPopup(loginRequest);
++    const result = await msalInstance.loginPopup({
++      ...loginRequest,
++      redirectUri: popupRedirectUri,
++    });
+ 
+     if (result?.account) {
+       msalInstance.setActiveAccount(result.account);
+@@ -69,7 +72,10 @@ export async function getPowerPlatformAccessToken() {
+     return result.accessToken;
+   } catch (error) {
+     if (error instanceof InteractionRequiredAuthError) {
+-      const result = await msalInstance.acquireTokenPopup(request);
++      const result = await msalInstance.acquireTokenPopup({
++        ...request,
++        redirectUri: popupRedirectUri,
++      });
+ 
+       return result.accessToken;
+     }
+@@ -108,7 +114,10 @@ export async function getDataverseAccessToken(dataverseUrl) {
+     return result.accessToken;
+   } catch (error) {
+     if (error instanceof InteractionRequiredAuthError) {
+-      const result = await msalInstance.acquireTokenPopup(request);
++      const result = await msalInstance.acquireTokenPopup({
++        ...request,
++        redirectUri: popupRedirectUri,
++      });
+ 
+       return result.accessToken;
+     }

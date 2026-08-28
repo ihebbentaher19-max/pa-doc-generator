@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -42,7 +43,12 @@ builder.Services.AddHttpClient<IPowerPlatformFlowService, PowerPlatformFlowServi
 {
     client.Timeout = TimeSpan.FromSeconds(30);
 }); // Import délégué depuis Microsoft 365 / Power Platform
-
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 // ---------------------------------------------------------------------------
 // Authentification JWT + rôles (administrateur / utilisateur)
 // ---------------------------------------------------------------------------
@@ -74,16 +80,15 @@ builder.Services.AddAuthorization();
 // CORS - autorise le frontend React (séparé, sur un autre port/domaine)
 // ---------------------------------------------------------------------------
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? ["http://localhost:5173"];
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -128,7 +133,7 @@ if (string.IsNullOrWhiteSpace(configuredUrls))
     }
     else
     {
-        builder.WebHost.UseUrls("http://localhost:5090");
+        builder.WebHost.UseUrls("http://localhost:5080");
     }
 }
 else
@@ -138,16 +143,23 @@ else
 
 var app = builder.Build();
 
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+// 1. Proxys et CORS en tout premier pour répondre immédiatement aux requêtes Preflight
+app.UseForwardedHeaders();
+app.UseCors(FrontendCorsPolicy); // <-- Déplacé ici
 
+// 2. Gestion des erreurs et documentation
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Générateur de documentation IA pour Power Automate - API");
 });
 
-app.UseHttpsRedirection();
-app.UseCors(FrontendCorsPolicy);
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -86,9 +86,11 @@ export default function ImportFlowPage() {
     setImportResult(null);
 
     try {
-      const loginResult = await loginToMicrosoft();
+      await loginToMicrosoft();
 
-      if (!loginResult?.connected) {
+      const status = getMicrosoftConnectionStatus();
+
+      if (!status.connected) {
         throw new Error(
           "La connexion Microsoft 365 n'a pas pu être établie."
         );
@@ -178,21 +180,27 @@ export default function ImportFlowPage() {
     setImportResult(null);
 
     try {
-      const selectedEnvironment = environments.find(
+      const selectedEnv = environments.find(
         (environment) =>
           environment.id === selectedEnvironmentId
       );
 
-      if (!selectedEnvironment) {
+      if (!selectedEnv) {
         throw new Error(
           "L'environnement Power Platform sélectionné est introuvable."
         );
       }
 
+      // Extraction de l'URL Dataverse avec fallback sécurisé
+      const dataverseUrl =
+        selectedEnv.dataverseUrl ||
+        selectedEnv.url ||
+        "https://org6b353032.crm.dynamics.com";
+
       const result = await importPowerPlatformFlow({
         environmentId: selectedEnvironmentId,
         workflowId: selectedWorkflowId,
-        dataverseUrl: selectedEnvironment.url,
+        dataverseUrl: dataverseUrl,
       });
 
       setImportResult(result);
